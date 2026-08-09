@@ -12,18 +12,19 @@ Os contratos usam unidades de centavo:
 
 ## Preparação no Remix
 
-1. Abrir `contracts/Projeto4Entrega1.sol`;
+1. Abrir os arquivos `.sol` em `contracts/` e `contracts/interfaces/`;
 2. Compilar com Solidity `0.8.24` ou uma versão `0.8.x` compatível;
 3. Em **Deploy & Run**, usar `Remix VM`;
-4. Manter a primeira conta como emissor institucional;
+4. Manter a primeira conta como emissor institucional e operador do oráculo;
 5. Separar a segunda conta para representar o credor.
 
 ## Deploy
 
-1. Implantar `QuitusToken`, passando o endereço da primeira conta como `tokenIssuer`;
-2. Implantar `DebitusToken`, passando o mesmo endereço;
-3. Implantar `CompensationManager`, passando os endereços de QTS e DBT;
-4. Nos dois tokens, chamar `setCompensationManager` com o endereço do gerenciador.
+1. Implantar `MonetaryOracle`, passando o endereço da primeira conta como `oracleOperator`;
+2. Implantar `QuitusToken`, passando o endereço da primeira conta como `tokenIssuer` e o endereço do `MonetaryOracle`;
+3. Implantar `DebitusToken`, passando o mesmo endereço como `tokenIssuer`;
+4. Implantar `CompensationManager`, passando os endereços de QTS e DBT;
+5. Nos dois tokens, chamar `setCompensationManager` com o endereço do gerenciador.
 
 ## Valores de exemplo
 

@@ -2,7 +2,7 @@
 
 Este documento registra como o protótipo existente será evoluído para a prova de conceito final do **Quitus & Debitus**.
 
-Ele parte diretamente do código já existente em `contracts/Projeto4Entrega1.sol`. Funcionalidades descritas como **planejadas** neste documento ainda não devem ser interpretadas como implementadas.
+Ele parte diretamente dos contratos existentes em `contracts/`. Funcionalidades descritas como **planejadas** neste documento ainda não devem ser interpretadas como implementadas.
 
 ## Protótipo existente
 

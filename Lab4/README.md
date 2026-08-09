@@ -21,7 +21,7 @@ A Entrega 1 estabeleceu a arquitetura preliminar e os primeiros contratos funcio
 |---|---|
 | Diagrama de arquitetura | [`docs/arquitetura.md`](./docs/arquitetura.md) |
 | Diagrama de classes | [`docs/contratos.md`](./docs/contratos.md) |
-| Contratos iniciais | [`contracts/Projeto4Entrega1.sol`](./contracts/Projeto4Entrega1.sol) |
+| Contratos iniciais | [`contracts/`](./contracts/) |
 | Fluxo de tokenização | [`docs/fluxo-tokenizacao.md`](./docs/fluxo-tokenizacao.md) |
 | Fluxo de compensação | [`docs/fluxo-compensacao.md`](./docs/fluxo-compensacao.md) |
 | Roteiro da demonstração inicial | [`docs/roteiro-demo.md`](./docs/roteiro-demo.md) |
@@ -139,7 +139,7 @@ Os diagramas de arquitetura e de classes serão revisados para refletir exatamen
 
 ### Deploy dos contratos principais
 
-Em [`Projeto4Entrega1.sol`](./contracts/Projeto4Entrega1.sol):
+Compile os contratos em [`contracts/`](./contracts/):
 
 1. implante `QuitusToken` passando:
    - `tokenIssuer`: Conta 0;
