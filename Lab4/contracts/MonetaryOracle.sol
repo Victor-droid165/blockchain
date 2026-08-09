@@ -8,8 +8,8 @@ pragma solidity ^0.8.24;
  *      1_000_000 = 1,000000 (índice base)
  *      1_010_000 = 1,010000 (+1%)
  *
- *      Este contrato apenas publica e consulta o índice. A integração com o
- *      QuitusToken será feita separadamente.
+ *      Este contrato publica e consulta o índice. QuitusToken consome
+ *      currentIndex() para materializar a atualização monetária de forma lazy.
  */
 contract MonetaryOracle {
     uint256 public constant INDEX_SCALE = 1_000_000;
@@ -65,8 +65,8 @@ contract MonetaryOracle {
 
     /**
      * @notice Calcula quanto um valor representaria no índice atual.
-     * @dev Não altera saldos nem emite QTS; serve como cálculo de referência
-     *      para a posterior integração com QuitusToken.
+     * @dev Não altera saldos nem emite QTS; serve como cálculo de referência.
+     *      A materialização do saldo é responsabilidade de QuitusToken.
      * @param amount Valor expresso nas unidades internas do token.
      * @param referenceIndex Índice associado ao valor de referência.
      */

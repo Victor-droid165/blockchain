@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+interface IMonetaryOracle {
+    function currentIndex() external view returns (uint256);
+}
+
 /**
  * @title ControlledToken
- * @notice Implementação fungível mínima para a primeira entrega do Projeto 4.
+ * @notice Implementação fungível mínima usada pela prova de conceito.
  * @dev Usa duas casas decimais: 100 unidades representam R$ 1,00.
- *      Para a versão final, a equipe pode substituir esta base por OpenZeppelin ERC20.
+ *      Para uma versão de produção, a equipe deve considerar bibliotecas
+ *      amplamente auditadas, como OpenZeppelin ERC20.
  */
 abstract contract ControlledToken {
     string public name;
@@ -16,7 +21,7 @@ abstract contract ControlledToken {
     address public immutable issuer;
     address public compensationManager;
 
-    mapping(address => uint256) private balances;
+    mapping(address => uint256) internal balances;
     mapping(address => mapping(address => uint256)) private allowances;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -93,9 +98,20 @@ abstract contract ControlledToken {
         _burn(account, amount);
     }
 
+    /**
+     * @dev Hook chamado antes de uma alteração de saldo.
+     *      Tokens sem atualização monetária mantêm a implementação vazia.
+     */
+    function _syncAccount(address account) internal virtual {}
+
     function _transfer(address from, address to, uint256 amount) internal {
         if (to == address(0)) revert InvalidAddress();
         if (amount == 0) revert InvalidAmount();
+
+        _syncAccount(from);
+        if (to != from) {
+            _syncAccount(to);
+        }
 
         uint256 fromBalance = balances[from];
         if (fromBalance < amount) revert InsufficientBalance();
@@ -112,6 +128,8 @@ abstract contract ControlledToken {
         if (account == address(0)) revert InvalidAddress();
         if (amount == 0) revert InvalidAmount();
 
+        _syncAccount(account);
+
         totalSupply += amount;
         balances[account] += amount;
         emit Transfer(address(0), account, amount);
@@ -120,6 +138,8 @@ abstract contract ControlledToken {
     function _burn(address account, uint256 amount) internal {
         if (account == address(0)) revert InvalidAddress();
         if (amount == 0) revert InvalidAmount();
+
+        _syncAccount(account);
 
         uint256 accountBalance = balances[account];
         if (accountBalance < amount) revert InsufficientBalance();
@@ -136,6 +156,8 @@ abstract contract ControlledToken {
 /**
  * @title QuitusToken
  * @notice Token QTS emitido a partir de um precatório validado pela instituição emissora.
+ * @dev Integra um oráculo monetário e materializa a atualização de forma lazy:
+ *      cada conta é sincronizada antes de operações que alteram seu saldo.
  */
 contract QuitusToken is ControlledToken {
     struct Precatorio {
@@ -145,7 +167,10 @@ contract QuitusToken is ControlledToken {
         bool tokenized;
     }
 
+    IMonetaryOracle public immutable monetaryOracle;
+
     mapping(bytes32 => Precatorio) public precatorios;
+    mapping(address => uint256) public lastAppliedIndex;
 
     event PrecatorioTokenized(
         bytes32 indexed precatorioIdHash,
@@ -154,10 +179,28 @@ contract QuitusToken is ControlledToken {
         uint256 tokenizedAt
     );
 
+    event MonetaryAdjustmentApplied(
+        address indexed account,
+        uint256 previousIndex,
+        uint256 currentIndex,
+        uint256 previousBalance,
+        uint256 adjustedBalance,
+        uint256 mintedAdjustment
+    );
+
     error PrecatorioAlreadyTokenized();
     error InvalidIdentifier();
+    error InvalidOracleIndex();
 
-    constructor(address tokenIssuer) ControlledToken("Quitus", "QTS", tokenIssuer) {}
+    constructor(
+        address tokenIssuer,
+        address monetaryOracleAddress
+    ) ControlledToken("Quitus", "QTS", tokenIssuer) {
+        if (monetaryOracleAddress == address(0)) revert InvalidAddress();
+        monetaryOracle = IMonetaryOracle(monetaryOracleAddress);
+
+        if (monetaryOracle.currentIndex() == 0) revert InvalidOracleIndex();
+    }
 
     /**
      * @notice Registra o identificador hash do precatório e emite QTS ao beneficiário.
@@ -187,6 +230,83 @@ contract QuitusToken is ControlledToken {
             beneficiary,
             amount,
             block.timestamp
+        );
+    }
+
+    /**
+     * @notice Materializa no saldo de uma conta a atualização monetária acumulada.
+     * @dev Pode ser chamada por qualquer pessoa; o efeito sempre beneficia somente
+     *      a própria conta informada conforme o índice do oráculo.
+     */
+    function syncBalance(address account) external returns (uint256) {
+        if (account == address(0)) revert InvalidAddress();
+        _syncAccount(account);
+        return balances[account];
+    }
+
+    /**
+     * @notice Mostra quanto o saldo teria após sincronização com o índice atual.
+     * @dev Função somente de leitura; não altera totalSupply nem o saldo armazenado.
+     */
+    function previewBalance(address account) external view returns (uint256) {
+        uint256 storedBalance = balances[account];
+        if (storedBalance == 0) return 0;
+
+        uint256 current = monetaryOracle.currentIndex();
+        uint256 previous = lastAppliedIndex[account];
+
+        if (previous == 0 || current <= previous) {
+            return storedBalance;
+        }
+
+        return (storedBalance * current) / previous;
+    }
+
+    function _syncAccount(address account) internal override {
+        uint256 current = monetaryOracle.currentIndex();
+        if (current == 0) revert InvalidOracleIndex();
+
+        uint256 previous = lastAppliedIndex[account];
+
+        // Primeira interação da conta com QTS: começa a contar do índice atual.
+        if (previous == 0) {
+            lastAppliedIndex[account] = current;
+            return;
+        }
+
+        if (current < previous) revert InvalidOracleIndex();
+
+        if (current == previous) {
+            return;
+        }
+
+        uint256 previousBalance = balances[account];
+
+        if (previousBalance == 0) {
+            lastAppliedIndex[account] = current;
+            return;
+        }
+
+        uint256 adjustedBalance = (previousBalance * current) / previous;
+        uint256 mintedAdjustment = adjustedBalance - previousBalance;
+
+        lastAppliedIndex[account] = current;
+
+        if (mintedAdjustment == 0) {
+            return;
+        }
+
+        balances[account] = adjustedBalance;
+        totalSupply += mintedAdjustment;
+
+        emit Transfer(address(0), account, mintedAdjustment);
+        emit MonetaryAdjustmentApplied(
+            account,
+            previous,
+            current,
+            previousBalance,
+            adjustedBalance,
+            mintedAdjustment
         );
     }
 }
@@ -254,13 +374,18 @@ interface ICompensableToken {
     function burnForCompensation(address account, uint256 amount) external;
 }
 
+interface IQuitusCompensableToken is ICompensableToken {
+    function syncBalance(address account) external returns (uint256);
+}
+
 /**
  * @title CompensationManager
  * @notice Queima QTS e DBT de forma atômica para registrar a compensação.
- * @dev Se qualquer queima falhar, toda a transação é revertida pela EVM.
+ * @dev Antes de validar o saldo QTS, sincroniza a conta com o índice monetário.
+ *      Se qualquer etapa falhar, toda a transação é revertida pela EVM.
  */
 contract CompensationManager {
-    ICompensableToken public immutable quitusToken;
+    IQuitusCompensableToken public immutable quitusToken;
     ICompensableToken public immutable debitusToken;
 
     mapping(bytes32 => bool) public compensationReferencesUsed;
@@ -284,7 +409,7 @@ contract CompensationManager {
             revert InvalidAddress();
         }
 
-        quitusToken = ICompensableToken(quitusTokenAddress);
+        quitusToken = IQuitusCompensableToken(quitusTokenAddress);
         debitusToken = ICompensableToken(debitusTokenAddress);
     }
 
@@ -297,6 +422,8 @@ contract CompensationManager {
         if (referenceId == bytes32(0)) revert InvalidIdentifier();
         if (amount == 0) revert InvalidAmount();
         if (compensationReferencesUsed[referenceId]) revert ReferenceAlreadyUsed();
+
+        quitusToken.syncBalance(msg.sender);
 
         if (
             quitusToken.balanceOf(msg.sender) < amount ||

@@ -194,41 +194,83 @@ Essa convenção será mantida, salvo necessidade técnica devidamente documenta
 
 ## Atualização monetária por oráculo
 
-Será adicionado um **oráculo simulado** para representar a atualização monetária exigida pela proposta.
+A atualização monetária já possui uma primeira integração funcional entre `MonetaryOracle` e `QuitusToken`.
 
-O oráculo deverá:
+### `MonetaryOracle`
 
-- possuir operador autorizado;
-- armazenar um índice cumulativo;
-- rejeitar valores inválidos;
-- emitir evento quando o índice mudar.
+O contrato mantém:
 
-Uma interface possível é:
+- `operator`: endereço autorizado a atualizar o índice;
+- `currentIndex`: índice monetário cumulativo;
+- `lastUpdatedAt`: instante da última atualização.
+
+A escala usada é `1_000_000`.
+
+Exemplo:
+
+```text
+1_000_000 = 1,000000
+1_010_000 = 1,010000
+```
+
+Somente o operador pode executar:
 
 ```solidity
 updateIndex(uint256 newIndex)
 ```
 
-A assinatura exata será definida no código.
+O índice não pode ser zero nem diminuir.
 
-### Aplicação da atualização
+### Integração com `QuitusToken`
 
-A intenção é evitar percorrer todos os titulares a cada atualização.
+`QuitusToken` recebe o endereço do oráculo no construtor:
 
-Por isso, a evolução deve preferir um mecanismo de atualização calculada/sincronizada quando o saldo for utilizado ou consultado pela lógica que altera estado.
-
-Exemplo conceitual:
-
-```text
-saldo anterior:     1.000,00 QTS
-índice anterior:    1,000000
-índice atual:       1,010000
-saldo atualizado:   1.010,00 QTS
+```solidity
+QuitusToken(
+    address tokenIssuer,
+    address monetaryOracleAddress
+)
 ```
 
-O índice usado na prova de conceito será simulado. Ele não representa uma fonte oficial nem implementa todas as regras reais de correção monetária.
+Cada conta possui:
 
----
+```solidity
+lastAppliedIndex[address]
+```
+
+A atualização utiliza estratégia **lazy**. A publicação de um novo índice não percorre todas as contas e não modifica imediatamente todos os saldos.
+
+O titular pode consultar o valor que teria após a atualização por:
+
+```solidity
+previewBalance(address account)
+```
+
+e materializar a atualização no estado por:
+
+```solidity
+syncBalance(address account)
+```
+
+Antes de transferências, mints e queimas, as contas envolvidas também são sincronizadas automaticamente.
+
+A diferença é materializada como emissão adicional de QTS, seguindo a ideia da proposta de atualizar o valor do token por mint adicional.
+
+Exemplo:
+
+```text
+saldo persistido:      100000
+último índice:          1000000
+índice atual:           1010000
+saldo após sync:        101000
+QTS adicional emitido:  1000
+```
+
+O `CompensationManager` sincroniza o saldo QTS do usuário antes de validar se há quantidade suficiente para a compensação.
+
+### Limite da implementação
+
+O índice é simulado e não representa integração com uma fonte oficial. A PoC também não pretende reproduzir todas as regras jurídicas de correção monetária de precatórios.
 
 ## Crédito ou obrigação fiscal e papel do DBT
 

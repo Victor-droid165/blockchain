@@ -19,138 +19,195 @@ A Entrega 1 estabeleceu a arquitetura preliminar e os primeiros contratos funcio
 
 | Item | Arquivo |
 |---|---|
-| Diagrama de arquitetura (on-chain / off-chain) | [`docs/arquitetura.md`](./docs/arquitetura.md) |
-| Diagrama de classes dos contratos | [`docs/contratos.md`](./docs/contratos.md) |
+| Diagrama de arquitetura | [`docs/arquitetura.md`](./docs/arquitetura.md) |
+| Diagrama de classes | [`docs/contratos.md`](./docs/contratos.md) |
 | Contratos iniciais | [`contracts/Projeto4Entrega1.sol`](./contracts/Projeto4Entrega1.sol) |
 | Fluxo de tokenização | [`docs/fluxo-tokenizacao.md`](./docs/fluxo-tokenizacao.md) |
 | Fluxo de compensação | [`docs/fluxo-compensacao.md`](./docs/fluxo-compensacao.md) |
 | Roteiro da demonstração inicial | [`docs/roteiro-demo.md`](./docs/roteiro-demo.md) |
 
-O protótipo da Entrega 1 contém:
+O protótipo inicial contém `ControlledToken`, `QuitusToken`, `DebitusToken` e `CompensationManager`.
 
-1. **`ControlledToken`** — base fungível mínima compartilhada por QTS e DBT;
-2. **`QuitusToken.tokenizePrecatorio`** — registra o hash do precatório e emite QTS ao beneficiário;
-3. **`DebitusToken.issueFiscalCredit`** — registra o hash do crédito fiscal e emite DBT ao titular;
-4. **`CompensationManager.compensate`** — verifica os saldos e queima o mesmo valor de QTS e DBT em uma única transação.
+## Entrega 2 — em desenvolvimento
 
-Os valores são representados com duas casas decimais (`100000` = R$ 1.000,00).
+A Entrega 2 evolui o protótipo com integrações, testes e interface.
 
-### Fluxo implementado na Entrega 1
+O modelo funcional usado como referência está em [`docs/modelo-solucao.md`](./docs/modelo-solucao.md).
 
-```text
-Instituição emissora
-    ├── tokeniza precatório → QTS
-    └── emite crédito fiscal → DBT
+### Funcionalidades já adicionadas
 
-Titular possui QTS + DBT
-        ↓
-CompensationManager.compensate(...)
-        ↓
-queima QTS + DBT na mesma transação
-```
+#### Oráculo monetário simulado
 
-## Entrega 2
+[`contracts/MonetaryOracle.sol`](./contracts/MonetaryOracle.sol) mantém um índice monetário cumulativo controlado por um endereço `operator`.
 
-A Entrega 2 evolui o protótipo em direção ao fluxo completo do projeto.
-
-O modelo funcional utilizado como referência está em:
-
-- [`docs/modelo-solucao.md`](./docs/modelo-solucao.md)
-
-### Estado atual da implementação
-
-Além dos contratos da Entrega 1, já foi adicionado:
-
-- **`MonetaryOracle`** — mock de oráculo institucional que mantém um índice monetário cumulativo.
-
-Arquivo:
-
-- [`contracts/MonetaryOracle.sol`](./contracts/MonetaryOracle.sol)
-
-O oráculo usa escala de `1_000_000`:
+A escala usada é:
 
 ```text
 1_000_000 = 1,000000
 1_010_000 = 1,010000 = +1%
 ```
 
-Apenas o endereço definido como `operator` no deploy pode publicar um novo índice.
+Somente o operador pode publicar um novo índice por meio de:
 
-> Neste ponto, o `MonetaryOracle` ainda é independente. Ele **ainda não altera o saldo de QTS**. A integração com `QuitusToken` será implementada separadamente.
+```solidity
+updateIndex(uint256 newIndex)
+```
 
-Ainda serão desenvolvidos e integrados:
+#### Integração do QTS com o oráculo
 
-- atualização monetária do QTS a partir do oráculo;
-- representação explícita da obrigação fiscal usada na compensação;
-- adequação do fluxo de DBT;
-- mercado secundário simplificado de QTS;
-- interface para demonstração de ponta a ponta;
-- testes automatizados e script de deploy.
+`QuitusToken` agora recebe o endereço do `MonetaryOracle` no construtor e mantém, para cada conta, o último índice aplicado.
+
+A atualização é **lazy**: o contrato não percorre todos os titulares quando o índice muda. Em vez disso, a atualização é materializada quando a conta é sincronizada ou antes de operações que alteram seu saldo.
+
+Funções adicionadas:
+
+```solidity
+syncBalance(address account)
+previewBalance(address account)
+```
+
+`syncBalance` materializa a correção no estado, aumentando o saldo QTS e `totalSupply`. `previewBalance` permite visualizar o saldo corrigido sem alterar o estado.
+
+Transferências, novos mints e queimas sincronizam automaticamente as contas envolvidas antes de alterar os saldos.
+
+`CompensationManager` também sincroniza o saldo QTS do solicitante antes de validar a compensação.
+
+### Exemplo
+
+Estado inicial:
+
+```text
+saldo QTS = 100000
+índice aplicado = 1000000
+```
+
+Após o operador executar:
+
+```text
+updateIndex(1010000)
+```
+
+a consulta:
+
+```text
+previewBalance(conta)
+```
+
+deve indicar:
+
+```text
+101000
+```
+
+Depois de:
+
+```text
+syncBalance(conta)
+```
+
+o saldo persistido passa a `101000`.
+
+Na convenção do projeto:
+
+```text
+R$ 1.000,00 → R$ 1.010,00
+```
+
+### Ainda não implementado
+
+- novo modelo da obrigação fiscal e do DBT;
+- compensação definitiva usando a obrigação fiscal registrada;
+- mercado secundário;
+- frontend/dashboard;
+- testes automatizados;
+- script de deploy;
+- integração com uma rede institucional real.
 
 ## Entrega 3
 
-Na Entrega 3, a versão final da prova de conceito deverá consolidar o código, a demonstração e a documentação.
+Na Entrega 3, a versão final da prova de conceito consolidará o código, a demonstração e a documentação.
 
-Antes da versão final:
+Os diagramas de arquitetura e de classes serão revisados para refletir exatamente o sistema efetivamente entregue.
 
-- os diagramas de arquitetura e de classes serão atualizados para refletir o código efetivamente entregue;
-- o fluxo de demonstração será revisado;
-- as limitações da PoC serão documentadas;
-- a versão final do repositório será marcada com a tag exigida pelo professor.
+## Como testar o estado atual no Remix
 
-A documentação final não deverá descrever funcionalidades que não estejam de fato presentes no código.
+### Deploy do oráculo
 
-## Como testar os contratos atuais no Remix
+1. Compile [`MonetaryOracle.sol`](./contracts/MonetaryOracle.sol) com Solidity `0.8.24`;
+2. implante `MonetaryOracle` usando a Conta 0 como `oracleOperator`;
+3. confirme que `currentIndex()` retorna `1000000`.
 
-### Contratos da Entrega 1
+### Deploy dos contratos principais
 
-1. Criar `Projeto4Entrega1.sol` no Remix e colar o conteúdo de [`contracts/Projeto4Entrega1.sol`](./contracts/Projeto4Entrega1.sol);
-2. Compilar com Solidity `0.8.24` (ou `0.8.x` compatível);
-3. Implantar `QuitusToken` e `DebitusToken` usando a conta institucional como `tokenIssuer`;
-4. Implantar `CompensationManager` com os endereços dos dois tokens;
-5. Chamar `setCompensationManager` em QTS e DBT;
-6. Seguir o cenário em [`docs/roteiro-demo.md`](./docs/roteiro-demo.md).
+Em [`Projeto4Entrega1.sol`](./contracts/Projeto4Entrega1.sol):
 
-### MonetaryOracle
+1. implante `QuitusToken` passando:
+   - `tokenIssuer`: Conta 0;
+   - `monetaryOracleAddress`: endereço do `MonetaryOracle`;
+2. implante `DebitusToken` usando Conta 0 como `tokenIssuer`;
+3. implante `CompensationManager` com os endereços de QTS e DBT;
+4. em QTS e DBT, execute `setCompensationManager` com o endereço do manager.
 
-1. Criar `MonetaryOracle.sol` no Remix e colar [`contracts/MonetaryOracle.sol`](./contracts/MonetaryOracle.sol);
-2. Compilar com Solidity `0.8.24`;
-3. Implantar usando a primeira conta do Remix como `oracleOperator`;
-4. Consultar `currentIndex` — o resultado inicial deve ser `1000000`;
-5. Executar `updateIndex(1010000)` usando a conta operadora;
-6. Consultar `currentIndex` novamente — o resultado deve ser `1010000`;
-7. Chamar `applyIndex(100000, 1000000)` — o resultado esperado é `101000`;
-8. Trocar para outra conta e tentar `updateIndex(...)` — a transação deve reverter com `Unauthorized`.
+### Demonstração da atualização
 
-Esse cenário representa, apenas para fins de demonstração:
+Com a Conta 0:
 
 ```text
-R$ 1.000,00
-    ↓ índice +1%
-R$ 1.010,00
+tokenizePrecatorio(hash, CONTA_1, 100000)
 ```
 
-A função `applyIndex` somente calcula o valor de referência; ela não modifica `QuitusToken`.
+Confirme:
 
-## Decisões de arquitetura já presentes
+```text
+balanceOf(CONTA_1) = 100000
+lastAppliedIndex(CONTA_1) = 1000000
+```
 
-- **Na blockchain:** hashes dos identificadores, valores, saldos, permissões e eventos;
-- **Fora da blockchain:** PDFs, CPF, dados processuais e demais informações sensíveis;
-- emissão restrita ao endereço institucional definido no deploy;
-- `CompensationManager` separado dos tokens;
-- compensação executada em uma única transação EVM;
-- prevenção de reutilização da mesma referência de compensação;
-- oráculo mock separado da lógica de QTS, permitindo integrar e testar cada responsabilidade de forma isolada.
+No `MonetaryOracle`, usando a conta operadora:
+
+```text
+updateIndex(1010000)
+```
+
+No `QuitusToken`:
+
+```text
+previewBalance(CONTA_1) = 101000
+```
+
+Execute:
+
+```text
+syncBalance(CONTA_1)
+```
+
+Depois:
+
+```text
+balanceOf(CONTA_1) = 101000
+lastAppliedIndex(CONTA_1) = 1010000
+```
+
+O evento `MonetaryAdjustmentApplied` deve registrar a correção aplicada.
+
+## Decisões de arquitetura atuais
+
+- documentos, CPF e informações processuais continuam off-chain;
+- hashes, saldos, permissões e eventos ficam on-chain;
+- o oráculo é separado do token;
+- o índice é cumulativo;
+- a atualização de QTS é lazy para evitar iterar por todos os titulares;
+- a correção monetária é materializada como mint adicional de QTS;
+- a compensação continua atômica no protótipo atual.
 
 ## Limites atuais
 
-O protótipo atual ainda não implementa:
+O índice utilizado é um mock acadêmico. O sistema não:
 
-- aplicação automática da atualização monetária ao saldo de QTS;
-- mercado secundário;
-- frontend/dashboard;
-- integração com sistemas institucionais;
-- implantação de uma rede permissionada institucional;
-- segurança e governança de produção.
+- consulta índice oficial;
+- aplica regras jurídicas reais de atualização;
+- valida juridicamente precatórios ou créditos fiscais;
+- integra TJPB ou Fazenda Pública;
+- representa uma implantação de produção.
 
-A prova de conceito demonstra mecanismos técnicos. Ela não valida juridicamente precatórios ou créditos fiscais e não substitui procedimentos do TJPB ou da Fazenda Pública.
+A prova de conceito demonstra o mecanismo técnico de atualização monetária e execução em contratos inteligentes.
