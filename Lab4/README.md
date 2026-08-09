@@ -72,6 +72,18 @@ Transferências, novos mints e queimas sincronizam automaticamente as contas env
 
 `CompensationManager` também sincroniza o saldo QTS do solicitante antes de validar a compensação.
 
+#### Registro da obrigação fiscal
+
+`DebitusToken` agora permite que a instituição emissora registre explicitamente uma obrigação fiscal elegível por:
+
+```solidity
+registerFiscalDebt(bytes32 fiscalDebtIdHash, address debtor, uint256 amount)
+```
+
+O registro mantém o valor original, o saldo remanescente, o devedor e o estado da obrigação. Nesta etapa, `registerFiscalDebt` **não emite DBT**.
+
+A função antiga `issueFiscalCredit(...)` e o fluxo atual de compensação ainda foram preservados temporariamente para que esta alteração fique isolada. A adequação do DBT ao novo registro fiscal será feita no próximo passo.
+
 ### Exemplo
 
 Estado inicial:
@@ -115,7 +127,7 @@ R$ 1.000,00 → R$ 1.010,00
 
 ### Ainda não implementado
 
-- novo modelo da obrigação fiscal e do DBT;
+- adequação do DBT ao registro da obrigação fiscal;
 - compensação definitiva usando a obrigação fiscal registrada;
 - mercado secundário;
 - frontend/dashboard;

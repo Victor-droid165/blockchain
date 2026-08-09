@@ -274,13 +274,7 @@ O índice é simulado e não representa integração com uma fonte oficial. A Po
 
 ## Crédito ou obrigação fiscal e papel do DBT
 
-O código atual interpreta o DBT como um token previamente emitido ao usuário por `issueFiscalCredit(...)`.
-
-A proposta de origem descreve um fluxo em que o DBT participa da própria compensação. Por isso, a implementação será revista.
-
-A evolução pretendida é registrar explicitamente a obrigação fiscal elegível e tratar o DBT como representação técnica da parcela compensada.
-
-Uma estrutura possível é:
+O `DebitusToken` agora possui um registro explícito da obrigação fiscal elegível:
 
 ```solidity
 struct FiscalDebt {
@@ -292,17 +286,19 @@ struct FiscalDebt {
 }
 ```
 
-E uma operação institucional semelhante a:
+A instituição emissora registra a obrigação por:
 
 ```solidity
 registerFiscalDebt(
-    bytes32 debtIdHash,
+    bytes32 fiscalDebtIdHash,
     address debtor,
     uint256 amount
 )
 ```
 
-Os nomes definitivos serão escolhidos no código.
+O registro não emite DBT. Ele apenas associa o identificador da obrigação ao devedor e mantém `originalAmount` e `remainingAmount`.
+
+A função anterior `issueFiscalCredit(...)` ainda permanece temporariamente no contrato e a compensação continua usando o saldo DBT previamente emitido. Essa compatibilidade será removida quando o DBT for integrado ao registro fiscal e à compensação atômica.
 
 ### Terminologia
 
