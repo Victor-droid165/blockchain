@@ -1,4 +1,4 @@
-# Diagrama preliminar de arquitetura
+# Diagrama de arquitetura
 
 ## Visão geral
 
@@ -7,54 +7,65 @@ flowchart LR
     C[Credor / contribuinte]
     O[Órgão institucional<br/>TJPB / Fazenda Pública]
     A[Administrador institucional]
+    OP[Operador do oráculo]
 
     subgraph OFF["Fora da blockchain — off-chain"]
-        FE[Aplicação web]
-        API[Backend / API]
-        DB[(Banco de dados operacional)]
+        FE[Aplicação web<br/>planejada]
+        API[Backend / API<br/>planejado]
+        DB[(Banco de dados operacional<br/>planejado)]
         DOC[(Documentos e dados sigilosos)]
-        IDX[Indexador de eventos]
-        ORA[Oráculo institucional<br/>índice de atualização]
-        MKT[Livro de ofertas<br/>planejado]
+        IDX[Indexador de eventos<br/>planejado]
+        MKT[Interface / livro de ofertas<br/>planejado]
     end
 
     subgraph ON["Blockchain — on-chain"]
+        ORA[MonetaryOracle]
         QTS[QuitusToken<br/>QTS]
-        DBT[DebitusToken<br/>DBT]
+        DBT[DebitusToken<br/>DBT + obrigações fiscais]
         CMP[CompensationManager]
         FUT[Marketplace / Settlement<br/>planejado]
     end
 
-    C --> FE
-    A --> FE
-    O --> API
-    FE --> API
-    API --> DB
-    API --> DOC
-    API -->|transações assinadas| QTS
-    API -->|transações assinadas| DBT
-    FE -->|carteira / provider| CMP
-    ORA -. atualização monetária futura .-> QTS
+    C -. futura interface .-> FE
+    A -. futura interface .-> FE
+    O -. futura integração .-> API
+    FE -. futura integração .-> API
+    API -.-> DB
+    API -.-> DOC
+    API -. transações futuras .-> QTS
+    API -. transações futuras .-> DBT
+
+    O -->|tokeniza precatório| QTS
+    O -->|emite DBT / registra obrigação fiscal| DBT
+    OP -->|updateIndex| ORA
+    ORA -->|currentIndex| QTS
+    C -->|carteira / transação| CMP
+
     QTS --> CMP
     DBT --> CMP
-    QTS --> IDX
-    DBT --> IDX
-    CMP --> IDX
-    IDX --> API
-    API --> FE
-    FE --> MKT
+
+    QTS -. eventos .-> IDX
+    DBT -. eventos .-> IDX
+    CMP -. eventos .-> IDX
+    ORA -. eventos .-> IDX
+    IDX -.-> API
+    API -.-> FE
+
+    FE -.-> MKT
     MKT -. liquidação futura .-> FUT
 ```
 
 ## O que fica on-chain
 
-- Hash do identificador institucional do precatório e do crédito fiscal;
-- Endereço do titular ou beneficiário;
-- Valor tokenizado em unidades inteiras de centavo;
+- Hash do identificador institucional do precatório, do crédito fiscal e da obrigação fiscal;
+- Endereço do titular, beneficiário ou devedor associado ao registro;
+- Valor tokenizado e valores da obrigação fiscal em unidades inteiras de centavo;
 - Saldos e oferta total de QTS e DBT;
-- Registro único das compensações;
-- Eventos de emissão, transferência, queima e compensação;
-- Futuramente, índice de atualização utilizado e liquidação das operações de mercado.
+- Índice monetário atual publicado pelo `MonetaryOracle`;
+- Último índice aplicado a cada conta QTS;
+- Registro único das compensações executadas;
+- Eventos de emissão, atualização monetária, transferência, queima, registro fiscal e compensação;
+- Futuramente, ordens e liquidação das operações do mercado secundário.
 
 ## O que fica off-chain
 
@@ -63,16 +74,22 @@ flowchart LR
 - Informações processuais sigilosas;
 - Evidências e documentos usados pela instituição para autorizar a emissão;
 - Banco operacional, autenticação, interface e indexação dos eventos;
-- Livro de ofertas do mercado secundário, mantendo apenas a liquidação final na blockchain.
+- Fonte institucional real do índice monetário;
+- Componentes de mercado secundário enquanto ainda não implementados.
 
 ## Justificativas preliminares
 
 1. **Privacidade:** a blockchain armazena hashes e valores mínimos, e não documentos nem dados pessoais completos.
 2. **Auditabilidade:** emissões, transferências, queimas e compensações ficam registradas como transações e eventos.
 3. **Atomicidade:** a compensação queima QTS e DBT na mesma transação. Se uma etapa falhar, nenhuma alteração permanece.
-4. **Integração institucional:** o backend representa a camada de integração com sistemas do TJPB e da Fazenda Pública.
-5. **Evolução:** oráculo de atualização monetária e mercado secundário aparecem como componentes planejados para as próximas entregas.
+4. **Atualização monetária:** `MonetaryOracle` publica um índice cumulativo e `QuitusToken` o utiliza para materializar correções de forma lazy.
+5. **Integração institucional:** backend, autenticação e integrações reais com TJPB/Fazenda ainda são componentes planejados.
+6. **Evolução:** marketplace, indexador e aplicação web continuam planejados e só devem ser considerados implementados quando existirem no código.
 
-## Escopo desta entrega vs. diagrama completo
+## Estado atual
 
-O diagrama mostra a solução **planejada**. Nesta entrega, o que já existe on-chain é só `QuitusToken`, `DebitusToken` e `CompensationManager` (emissão + compensação). Oráculo, marketplace, indexador e aplicação web aparecem como componentes futuros — e devem evoluir nas próximas entregas.
+Já existem on-chain `MonetaryOracle`, `QuitusToken`, `DebitusToken` e `CompensationManager`.
+
+`DebitusToken` já registra uma `FiscalDebt`, mas a função atual `CompensationManager.compensate(referenceId, amount)` **ainda não consome esse registro**: ela continua exigindo que o solicitante possua previamente o mesmo valor em QTS e DBT.
+
+Marketplace, indexador, backend e aplicação web ainda não estão implementados.
