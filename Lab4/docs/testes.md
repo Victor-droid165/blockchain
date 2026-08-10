@@ -7,12 +7,13 @@ Os testes automatizados usam **Hardhat 3**, `node:test` e Viem.
 A partir de `Lab4/`:
 
 ```bash
+nvm use
 npm install
 npm run build
 npm test
 ```
 
-O ambiente requer Node.js compatível com Hardhat 3.
+O projeto possui `.nvmrc` com Node 22 e declara Node `>=22.13.0` em `package.json`.
 
 ## Cobertura funcional atual
 

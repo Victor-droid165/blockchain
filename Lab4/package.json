@@ -5,10 +5,16 @@
   "type": "module",
   "scripts": {
     "build": "hardhat build",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.ts",
+    "node": "hardhat node",
+    "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "5.0.7",
     "hardhat": "3.12.0"
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

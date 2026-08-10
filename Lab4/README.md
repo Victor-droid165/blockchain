@@ -164,16 +164,40 @@ A descrição dos cenários está em [`docs/testes.md`](./docs/testes.md).
 Para executar a partir de `Lab4/`:
 
 ```bash
+nvm use
 npm install
 npm run build
 npm test
 ```
 
+#### Deploy
+
+O script [`scripts/deploy.ts`](./scripts/deploy.ts) implanta e configura todos os contratos atuais da PoC.
+
+Execução efêmera:
+
+```bash
+npm run deploy
+```
+
+Para manter uma rede local disponível para outras aplicações:
+
+```bash
+npm run node
+```
+
+e, em outro terminal:
+
+```bash
+npm run deploy:localhost
+```
+
+Mais detalhes em [`docs/deploy.md`](./docs/deploy.md).
+
 ### Ainda não implementado
 
 - frontend/dashboard;
-- script de deploy;
-- integração com uma rede institucional real.
+- deploy/configuração em uma rede pública ou institucional.
 
 ## Entrega 3
 

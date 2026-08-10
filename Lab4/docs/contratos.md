@@ -238,4 +238,4 @@ Já implementado:
 Ainda não implementado:
 
 - frontend;
-- scripts de deploy.
+- configuração/deploy em uma rede pública ou institucional.
