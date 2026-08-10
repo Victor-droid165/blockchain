@@ -57,6 +57,8 @@ cancel(listingId)
 
 Não existe quantidade nem execução parcial. O NFT fica com o vendedor até a compra; para permitir a transferência, o vendedor aprova o marketplace pelo mecanismo padrão do ERC-721 [1].
 
+> **Atualização:** esta seção descreve apenas o lado da oferta (listagem a preço fixo), que foi o desenho inicial. Um lado de demanda (ofertas/lances via `makeOffer`/`cancelOffer`/`acceptOffer`) foi adicionado depois para formar um livro de ofertas de fato; ver [`livro-de-ofertas-e-rede-publica.md`](./livro-de-ofertas-e-rede-publica.md) e [`contratos.md`](../arquitetura/contratos.md).
+
 O ETH usado na PoC é apenas uma forma simples de demonstrar atomicamente pagamento de teste e transferência de propriedade. Não representa a liquidação financeira de uma solução institucional real.
 
 ## Pausa, upgrade e invalidação são conceitos diferentes

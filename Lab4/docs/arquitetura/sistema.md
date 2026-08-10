@@ -30,7 +30,7 @@ flowchart LR
     VIEM -->|eth_call / eventos| PMKT
 
     W -->|mint / approve / transfer| PNFT
-    W -->|list / buy / cancel| PMKT
+    W -->|list / buy / cancel<br/>makeOffer / cancelOffer / acceptOffer| PMKT
     W -->|pause / unpause / invalidate| PNFT
     W -->|pause / unpause / invalidate| PMKT
 
@@ -57,13 +57,14 @@ Responsável por:
 
 Responsável por:
 
-- registrar listagens de um `tokenId` completo;
-- armazenar preço e vendedor;
-- executar compra com ETH de teste;
-- transferir o NFT ao comprador;
-- cancelar listagens;
-- registrar estatísticas básicas de vendas;
-- oferecer pausa, upgrade e invalidação com as mesmas regras administrativas.
+- registrar listagens de um `tokenId` completo (lado da oferta);
+- receber e escrever em custódia ofertas/lances de compra em ETH (lado da demanda);
+- armazenar preço, vendedor e comprador conforme o caso;
+- executar compra por listagem (`buy`) ou por aceite de oferta (`acceptOffer`) com ETH de teste;
+- transferir o NFT ao comprador em ambos os fluxos;
+- cancelar listagens e ofertas, devolvendo o ETH em custódia ao caso de cancelamento de oferta;
+- registrar estatísticas básicas de vendas, listagens e ofertas;
+- oferecer pausa, upgrade e invalidação com as mesmas regras administrativas — exceto `cancelOffer`, que permanece disponível mesmo pausado/invalidado para não prender fundos de terceiros.
 
 ## Off-chain
 

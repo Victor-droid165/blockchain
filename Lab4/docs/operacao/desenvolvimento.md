@@ -18,12 +18,16 @@ Lab4/
 │   │   ├── PrecatorioNFT.test.ts
 │   │   └── PrecatorioMarketplace.test.ts
 │   ├── hardhat.config.ts
+│   ├── .env.example
 │   └── package.json
 ├── frontend/
+│   └── .env.example
 ├── docs/
 ├── package.json
 └── .nvmrc
 ```
+
+Na raiz do repositório (fora de `Lab4/`) fica [`.github/workflows/lab4-ci.yml`](../../../.github/workflows/lab4-ci.yml), que roda build e testes desta pasta a cada push/PR.
 
 Não existe um backend HTTP separado. Para esta PoC, a camada `blockchain/` contém o estado e as regras on-chain; o frontend acessa a rede diretamente com Viem.
 
@@ -56,6 +60,8 @@ npm run chain:test
 npm run frontend:build
 ```
 
+Essas três etapas são exatamente o que o workflow de CI (`.github/workflows/lab4-ci.yml`, na raiz do repositório) roda a cada push/PR que toque `Lab4/`.
+
 ## Desenvolvimento local
 
 Terminal 1:
@@ -75,6 +81,8 @@ Terminal 3:
 ```bash
 npm run frontend:dev
 ```
+
+Para implantar na rede de testes pública (Sepolia) em vez da rede local, veja [`deploy.md`](./deploy.md) — requer preencher `blockchain/.env` a partir de `blockchain/.env.example`.
 
 ## Solidity e EVM
 
@@ -113,6 +121,9 @@ blockchain/deployments/*.json
 frontend/dist/
 frontend/public/deployment.json
 *.tsbuildinfo
+**/.env
 ```
 
-`package-lock.json` deve permanecer versionado.
+`package-lock.json` e os arquivos `.env.example` (blockchain e frontend) devem permanecer versionados; são o modelo, não o segredo.
+
+Exceção: se um deploy real em Sepolia for feito, o manifesto gerado pelo OpenZeppelin Upgrades em `blockchain/.openzeppelin/sepolia.json` **deve** ser commitado — ele não contém segredos, só o histórico de proxies/implementações daquele deploy, e é o que evidencia e valida upgrades futuros naquela rede pública. Para a rede Hardhat local (dev instance), o mesmo plugin já grava esse manifesto fora do repositório (diretório temporário do sistema), então não aparece aqui.

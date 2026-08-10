@@ -87,6 +87,8 @@ A PoC também pode ser implantada na Sepolia, satisfazendo o entregável de cont
    npx hardhat verify --network sepolia <endereco_da_implementacao>
    ```
 
+   Diferente da rede Hardhat local — onde o OpenZeppelin Upgrades grava esse manifesto fora do repositório, num diretório temporário do sistema, porque detecta uma rede de desenvolvimento efêmera —, para a Sepolia ele é gravado dentro do projeto e **deve ser commitado**: não contém segredos, só o histórico de proxies/implementações necessário para validar upgrades futuros naquele deploy real.
+
 5. Para rodar o frontend contra a Sepolia, basta que `frontend/public/deployment.json` aponte para ela (passo 3 já faz isso) e que a carteira injetada esteja na rede Sepolia — o frontend detecta o `chainId` do deployment e usa a chain/RPC certos automaticamente (`frontend/src/blockchain/client.ts`). Se quiser um RPC próprio em vez do público padrão do viem, defina `VITE_RPC_URL` em `frontend/.env` (veja `frontend/.env.example`).
 
 A rede Hardhat local continua sendo o ambiente padrão de desenvolvimento e da demonstração principal; a Sepolia é um caminho adicional para evidenciar o deploy em rede pública.
