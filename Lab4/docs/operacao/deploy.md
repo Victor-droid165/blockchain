@@ -46,6 +46,12 @@ O arquivo contém `chainId`, conta emissora/operator e endereços dos cinco cont
 
 O frontend lê `deployment.json` no carregamento. Se o arquivo não existir, a interface informa os comandos necessários para iniciar a rede e realizar o deploy.
 
+## Migração para ERC-721
+
+`PrecatorioNFT.sol` já existe e é compatível com proxy UUPS, mas **o script de deploy desta página ainda implanta o conjunto legado QTS/DBT**. O deploy do proxy `PrecatorioNFT` será incorporado no commit específico de migração do deploy, depois da validação dos testes do novo contrato.
+
+Enquanto isso, não considerar `PrecatorioNFT` parte do cenário executado por `scripts/deploy.ts`.
+
 ## Rede pública ou permissionada
 
 A PoC ainda não inclui credenciais nem configuração final de Sepolia, Besu ou outra rede institucional.

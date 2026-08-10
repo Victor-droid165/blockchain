@@ -2,7 +2,9 @@
 
 Esta pasta concentra a documentação da prova de conceito do Projeto 4 — **Tokenização de Precatórios e Créditos Fiscais (Quitus & Debitus)**.
 
-Os documentos descrevem **o sistema efetivamente implementado**. Componentes ainda não implementados são identificados explicitamente como limitações ou possibilidades de evolução, sem aparecer nos diagramas como se já existissem.
+Os documentos distinguem **o sistema efetivamente implementado** da **arquitetura revisada após feedback do professor**. Componentes ainda não implementados são identificados explicitamente como arquitetura alvo, sem serem apresentados como código já disponível.
+
+A decisão de migração para ERC-721 está em [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md). O documento também distingue pausa temporária, upgrade de um proxy válido e invalidação permanente.
 
 ## Diagramas obrigatórios
 
@@ -20,7 +22,7 @@ Apresenta:
 - a integração entre frontend, carteira e blockchain;
 - os contratos atualmente implementados.
 
-O diagrama é mantido em **Mermaid**, permitindo versionamento e visualização direta no GitHub.
+O arquivo mantém o diagrama do estado implementado e, durante a migração, um segundo diagrama da arquitetura revisada. Ambos são Mermaid, permitindo que o histórico do Git registre explicitamente a evolução arquitetural.
 
 ### Diagrama de classes dos contratos inteligentes
 
@@ -35,13 +37,17 @@ Apresenta:
 - funções principais;
 - relações de herança, dependência e comunicação entre os contratos.
 
-O diagrama também é mantido em **Mermaid** e deve acompanhar a evolução da implementação.
+O arquivo contém o diagrama dos contratos existentes e a estrutura ERC-721 proposta. O diagrama revisado só substituirá definitivamente o anterior quando o novo código estiver implementado.
 
 > Estes diagramas não são artefatos estáticos da primeira entrega. Eles evoluem junto com o projeto e permanecem coerentes com o código.
 
+## Decisões de arquitetura
+
+- [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md) — consenso adotado após feedback do professor, simplificação para ERC-721, marketplace e estratégia de evolução.
+
 ## Fluxos funcionais
 
-Os diagramas abaixo complementam os dois diagramas obrigatórios e detalham os principais casos de uso da PoC:
+Os fluxos abaixo ainda descrevem o **código atualmente executável**. Eles serão substituídos gradualmente conforme a implementação NFT entrar no repositório:
 
 - [`fluxos/tokenizacao.md`](./fluxos/tokenizacao.md) — tokenização de precatório e atualização monetária do QTS;
 - [`fluxos/compensacao.md`](./fluxos/compensacao.md) — compensação atômica entre QTS e obrigação fiscal, com DBT transitório;
@@ -78,6 +84,8 @@ docs/
 ├── arquitetura/
 │   ├── sistema.md
 │   └── contratos.md
+├── decisoes/
+│   └── revisao-escopo-nft.md
 ├── fluxos/
 │   ├── tokenizacao.md
 │   ├── compensacao.md

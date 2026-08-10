@@ -1,6 +1,9 @@
 # Diagrama de classes dos contratos
 
-O diagrama abaixo representa os contratos **atualmente implementados**.
+> **Revisão de escopo em andamento:** o primeiro diagrama representa os contratos existentes. O segundo registra a estrutura alvo após o feedback do professor. Os contratos antigos só serão removidos quando a substituição ERC-721 estiver funcional e testada.
+
+## Estado atualmente implementado
+
 
 ```mermaid
 classDiagram
@@ -102,6 +105,34 @@ classDiagram
         +transferFrom(from, to, amount) bool
     }
 
+    class ERC721PausableUpgradeable {
+        <<OpenZeppelin>>
+        +paused() bool
+    }
+
+    class OwnableUpgradeable {
+        <<OpenZeppelin>>
+        +owner() address
+    }
+
+    class UUPSUpgradeable {
+        <<OpenZeppelin>>
+        +upgradeToAndCall(newImplementation, data)
+    }
+
+    class PrecatorioNFT {
+        +uint256 nextTokenId
+        +bool invalidated
+        +mapping precatorios
+        +mapping identifiersUsed
+        +initialize(initialOwner)
+        +mintPrecatorio(to, identifier, faceValue) uint256
+        +pause()
+        +unpause()
+        +invalidate()
+        #_authorizeUpgrade(newImplementation)
+    }
+
     class QuitusMarketplace {
         +enum OrderSide
         +mapping orders
@@ -128,7 +159,12 @@ classDiagram
     CompensationManager --> IQuitusCompensableToken : QTS
     CompensationManager --> IDebitusCompensableToken : obrigação fiscal / DBT
     QuitusMarketplace --> IMarketToken : transfere QTS
+    ERC721PausableUpgradeable <|-- PrecatorioNFT
+    OwnableUpgradeable <|-- PrecatorioNFT
+    UUPSUpgradeable <|-- PrecatorioNFT
 ```
+
+`PrecatorioNFT` já foi introduzido como a primeira peça executável da arquitetura revisada. Ele ainda convive com os contratos legados durante a migração.
 
 ## Responsabilidades
 
@@ -239,3 +275,127 @@ Já implementado:
 Ainda não implementado:
 
 - configuração/deploy em uma rede pública ou institucional.
+
+
+## Estrutura revisada
+
+A arquitetura alvo reduz a quantidade de contratos de domínio e troca os tokens fungíveis por um ativo ERC-721 individual.
+
+```mermaid
+classDiagram
+    class ERC721Upgradeable {
+        <<base>>
+        +ownerOf(tokenId) address
+        +balanceOf(owner) uint256
+        +approve(to, tokenId)
+        +setApprovalForAll(operator, approved)
+        +transferFrom(from, to, tokenId)
+        +safeTransferFrom(from, to, tokenId)
+    }
+
+    class PausableUpgradeable {
+        <<base>>
+        +paused() bool
+        #_pause()
+        #_unpause()
+    }
+
+    class UUPSUpgradeable {
+        <<base>>
+        #_authorizeUpgrade(newImplementation)
+    }
+
+    class PrecatorioNFT {
+        +uint256 nextTokenId
+        +bool invalidated
+        +mapping precatorios
+        +initialize(admin)
+        +mintPrecatorio(to, identifier, faceValue) uint256
+        +pause()
+        +unpause()
+        +invalidate()
+        +getPrecatorio(tokenId)
+    }
+
+    class Precatorio {
+        +bytes32 identifier
+        +uint256 faceValue
+        +uint256 registeredAt
+    }
+
+    class NFTMarketplace {
+        +uint256 nextListingId
+        +mapping listings
+        +initialize(admin, nft)
+        +list(tokenId, price) uint256
+        +buy(listingId)
+        +cancel(listingId)
+        +pause()
+        +unpause()
+    }
+
+    class Listing {
+        +address seller
+        +uint256 tokenId
+        +uint256 price
+        +bool active
+    }
+
+    ERC721Upgradeable <|-- PrecatorioNFT
+    PausableUpgradeable <|-- PrecatorioNFT
+    UUPSUpgradeable <|-- PrecatorioNFT
+
+    PausableUpgradeable <|-- NFTMarketplace
+    UUPSUpgradeable <|-- NFTMarketplace
+
+    PrecatorioNFT "1" --> "*" Precatorio
+    NFTMarketplace "1" --> "*" Listing
+    NFTMarketplace --> PrecatorioNFT : transfere tokenId
+```
+
+### Responsabilidades da arquitetura revisada
+
+#### `PrecatorioNFT`
+
+Responsável por:
+
+- representar cada precatório por um `tokenId`;
+- registrar apenas metadados mínimos da PoC;
+- expor propriedade e transferências ERC-721;
+- permitir mint por perfil autorizado;
+- permitir pausa emergencial temporária;
+- permitir upgrade UUPS enquanto o proxy estiver válido;
+- permitir `invalidate()` como estado terminal, bloqueando inclusive upgrades.
+
+#### `NFTMarketplace`
+
+Responsável por:
+
+- criar uma listagem para um `tokenId`;
+- associar preço e vendedor;
+- executar a compra;
+- transferir o NFT;
+- cancelar listagem;
+- emitir eventos;
+- permitir pausa emergencial.
+
+Não haverá execução parcial, pois um ERC-721 representa um ativo indivisível.
+
+#### Proxy / implementação
+
+O frontend deve continuar usando um endereço estável de proxy enquanto a lógica pode evoluir para uma nova implementação.
+
+`PrecatorioNFT` já adota UUPS e restringe upgrades ao proprietário. A autorização de upgrade também verifica `invalidated`, de forma que a invalidação encerra permanentemente a possibilidade de trocar a implementação daquele proxy.
+
+## Componentes do modelo atual que serão substituídos
+
+Após a migração e os novos testes, a arquitetura alvo não deverá depender de:
+
+- `ControlledToken`;
+- `QuitusToken`;
+- `DebitusToken`;
+- `MonetaryOracle`;
+- `CompensationManager`;
+- `QuitusMarketplace` baseado em QTS.
+
+Até essa substituição acontecer no código, eles permanecem documentados no primeiro diagrama para que documentação e implementação não divirjam.

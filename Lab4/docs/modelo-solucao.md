@@ -1,6 +1,46 @@
 # Modelo da solução
 
-Este documento descreve o modelo funcional **atualmente implementado** na prova de conceito Quitus & Debitus. O código on-chain está em [`../blockchain/contracts/`](../blockchain/contracts/) e a interface em [`../frontend/`](../frontend/).
+> **Estado de transição:** o repositório ainda implementa o modelo QTS/DBT descrito na seção **Modelo atualmente implementado**. Após feedback do professor, a equipe decidiu migrar a PoC para precatórios ERC-721 negociados em um marketplace de NFTs. A nova direção está registrada antes do modelo legado para orientar os próximos commits sem apresentar funcionalidades ainda não implementadas como prontas.
+
+## Direção revisada
+
+O objetivo da próxima versão é demonstrar um ciclo mais simples:
+
+```mermaid
+flowchart LR
+    I[Entrada abstrata do precatório]
+    N[Mint do PrecatorioNFT]
+    L[Listagem no marketplace]
+    B[Compra]
+    T[Transferência de propriedade]
+
+    I --> N --> L --> B --> T
+```
+
+Cada precatório é representado por um NFT ERC-721 individual.
+
+A PoC passa a priorizar:
+
+- criação de precatório por ator autorizado;
+- propriedade do NFT;
+- aprovação para negociação;
+- marketplace visual;
+- listagem;
+- compra;
+- cancelamento;
+- transferência do NFT;
+- eventos on-chain;
+- pausa emergencial temporária;
+- evolução da lógica por proxy UUPS enquanto válido;
+- invalidação permanente do proxy, sem possibilidade de retomada ou upgrade.
+
+Documentos judiciais completos não são necessários para demonstrar esse fluxo. A entrada deverá usar apenas dados mínimos e abstratos.
+
+O modelo revisado também elimina a necessidade de execução parcial de ordens: o ativo ERC-721 é indivisível e a venda transfere o `tokenId` completo.
+
+A decisão e as ambiguidades resolvidas estão documentadas em [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md).
+
+## Modelo atualmente implementado
 
 ## Objetivo da PoC
 
@@ -245,3 +285,39 @@ A PoC não deve ser apresentada como sistema jurídico ou financeiro completo. E
 - [Mercado secundário](./fluxos/mercado-secundario.md)
 - [Ambiente de desenvolvimento](./operacao/desenvolvimento.md)
 - [Roteiro de demonstração](./operacao/roteiro-demo.md)
+
+
+## Impacto da revisão de escopo
+
+As seções anteriores de QTS, DBT, oráculo e compensação permanecem neste documento enquanto correspondem ao código executável atual.
+
+A migração deve ocorrer sem apagar essa distinção prematuramente:
+
+```text
+documentação registra a nova decisão
+        ↓
+PrecatorioNFT implementado com UUPS + pause + invalidate e testado
+        ↓
+Marketplace ERC-721 implementado e testado
+        ↓
+pause / upgrade
+        ↓
+frontend adaptado
+        ↓
+componentes antigos removidos
+        ↓
+documentação final descreve apenas a arquitetura vigente
+```
+
+Os fluxos antigos em `docs/fluxos/` também permanecem válidos como documentação do código atual até que cada fluxo seja substituído por sua versão NFT.
+
+
+## Primeira implementação ERC-721
+
+`blockchain/contracts/PrecatorioNFT.sol` já implementa a primeira parte da arquitetura revisada. Cada token representa um precatório individual com `identifier`, `faceValue` e `registeredAt`. O contrato é ERC-721 upgradeável via UUPS e diferencia três operações administrativas:
+
+- `pause()` — interrupção temporária;
+- upgrade UUPS — evolução da lógica enquanto o proxy estiver válido;
+- `invalidate()` — estado terminal e irreversível, que também bloqueia futuros upgrades.
+
+Os contratos QTS/DBT permanecem no repositório durante a migração e só serão removidos depois que o marketplace ERC-721 e o frontend revisado substituírem o fluxo antigo.

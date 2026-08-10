@@ -56,3 +56,15 @@ Valida:
 ## Escopo
 
 Esses testes validam regras de contrato em rede simulada. Eles não substituem auditoria de segurança, testes de integração institucional nem validação jurídica do modelo.
+
+### `PrecatorioNFT.test.ts`
+
+Valida a primeira implementação ERC-721 da arquitetura revisada:
+
+- mint institucional com identificador único;
+- propriedade ERC-721;
+- restrição de mint ao administrador;
+- pausa e retomada;
+- upgrade UUPS mantendo endereço e estado;
+- `invalidate()` como operação terminal;
+- bloqueio de `unpause`, aprovações, transferências, mint e upgrades depois da invalidação.
