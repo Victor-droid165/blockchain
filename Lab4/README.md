@@ -151,10 +151,27 @@ Na convenção do projeto:
 R$ 1.000,00 → R$ 1.010,00
 ```
 
+#### Testes automatizados
+
+A PoC possui testes em [`test/`](./test/) para:
+
+- atualização monetária QTS + oráculo;
+- compensação e atomicidade;
+- mercado secundário.
+
+A descrição dos cenários está em [`docs/testes.md`](./docs/testes.md).
+
+Para executar a partir de `Lab4/`:
+
+```bash
+npm install
+npm run build
+npm test
+```
+
 ### Ainda não implementado
 
 - frontend/dashboard;
-- testes automatizados;
 - script de deploy;
 - integração com uma rede institucional real.
 

@@ -238,4 +238,4 @@ Já implementado:
 Ainda não implementado:
 
 - frontend;
-- testes automatizados e scripts de deploy.
+- scripts de deploy.
