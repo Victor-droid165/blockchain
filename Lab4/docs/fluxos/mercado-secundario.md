@@ -1,5 +1,7 @@
 # Fluxo do mercado secundário
 
+O mercado secundário tem dois lados independentes: a listagem a preço fixo (oferta do vendedor) e o lance escrowado (demanda do comprador). Os dois alimentam o mesmo histórico de preços.
+
 ## Listagem
 
 ```mermaid
@@ -54,11 +56,71 @@ sequenceDiagram
     MKT-->>Vendedor: ListingCancelled
 ```
 
+## Oferta (lance sem listagem prévia)
+
+```mermaid
+sequenceDiagram
+    actor Comprador
+    participant MKT as PrecatorioMarketplace
+    participant NFT as PrecatorioNFT
+
+    Comprador->>MKT: makeOffer(tokenId) + lance em ETH
+    MKT->>NFT: ownerOf(tokenId)
+    MKT->>MKT: valida que o comprador não é o proprietário
+    MKT->>MKT: valida ausência de oferta ativa do mesmo comprador nesse tokenId
+    MKT->>MKT: escrowa o ETH e cria Offer
+    MKT-->>Comprador: OfferMade
+```
+
+O ETH do lance fica retido no próprio contrato — não há transferência de NFT nesta etapa.
+
+## Aceite de oferta
+
+```mermaid
+sequenceDiagram
+    actor Proprietário
+    participant MKT as PrecatorioMarketplace
+    participant NFT as PrecatorioNFT
+    actor Comprador
+
+    Proprietário->>MKT: acceptOffer(offerId)
+    MKT->>NFT: ownerOf(tokenId)
+    MKT->>NFT: verifica aprovação
+    MKT->>MKT: encerra listagem ativa do mesmo tokenId, se houver
+    MKT->>MKT: active = false
+    MKT->>NFT: safeTransferFrom(proprietário, comprador, tokenId)
+    MKT->>Proprietário: envia ETH escrowado do lance
+    MKT-->>Comprador: OfferAccepted
+```
+
+Quem aceita é sempre o proprietário **atual** do `tokenId`, não necessariamente quem era proprietário quando o lance foi feito: uma oferta sobrevive a uma venda por listagem do mesmo NFT, entrando para o novo proprietário decidir.
+
+## Cancelamento de oferta
+
+```mermaid
+sequenceDiagram
+    actor Comprador
+    participant MKT as PrecatorioMarketplace
+
+    Comprador->>MKT: cancelOffer(offerId)
+    MKT->>MKT: verifica buyer
+    MKT->>MKT: active = false
+    MKT->>Comprador: devolve o ETH escrowado
+    MKT-->>Comprador: OfferCancelled
+```
+
+`cancelOffer` funciona mesmo com o marketplace pausado ou invalidado — é a única função mutável do contrato sem essa restrição, para que o depósito do comprador nunca fique preso.
+
+## Histórico de preços
+
+O frontend não lê um histórico on-chain dedicado: ele agrega os eventos `PrecatorioSold` (venda por listagem) e `OfferAccepted` (venda por oferta aceita), ordena por timestamp e apresenta como histórico de preços do mercado secundário.
+
 ## Estados administrativos
 
 ```text
 pause()
 → bloqueio temporário das operações
+→ cancelOffer continua funcionando (devolução de saldo do próprio comprador)
 
 upgrade
 → troca de implementação enquanto o proxy for válido
@@ -66,6 +128,7 @@ upgrade
 invalidate()
 → bloqueio permanente
 → sem unpause
-→ sem novas operações
+→ sem novas listagens, ofertas ou aceites
 → sem novos upgrades
+→ cancelOffer continua funcionando
 ```

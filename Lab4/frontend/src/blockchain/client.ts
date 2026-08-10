@@ -6,15 +6,79 @@ import {
   custom,
   http,
   type Address,
+  type Chain,
+  type PublicClient,
 } from "viem";
-import { hardhat } from "viem/chains";
+import { hardhat, sepolia } from "viem/chains";
 
 import type { Deployment } from "./types";
 
-export const publicClient = createPublicClient({
+const KNOWN_CHAINS: Record<number, Chain> = {
+  [hardhat.id]: hardhat,
+  [sepolia.id]: sepolia,
+};
+
+/**
+ * A PoC não fica travada na rede Hardhat local: o `chainId` gravado em
+ * `deployment.json` decide a chain e o RPC usados pelo frontend. Redes
+ * desconhecidas ainda funcionam com metadados mínimos, mas sem RPC público
+ * conhecido — nesse caso é necessário definir `VITE_RPC_URL`.
+ */
+function resolveChain(chainId: number): Chain {
+  return (
+    KNOWN_CHAINS[chainId] ?? {
+      id: chainId,
+      name: `Rede ${chainId}`,
+      nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+      rpcUrls: { default: { http: [] } },
+    }
+  );
+}
+
+function resolveRpcUrl(chainId: number): string {
+  if (chainId === hardhat.id) {
+    return "http://127.0.0.1:8545";
+  }
+
+  const override = import.meta.env.VITE_RPC_URL as string | undefined;
+  if (override) return override;
+
+  const [defaultRpc] = resolveChain(chainId).rpcUrls.default.http;
+  if (!defaultRpc) {
+    throw new Error(
+      `Nenhum RPC conhecido para a rede ${chainId}. Defina VITE_RPC_URL em frontend/.env.`,
+    );
+  }
+
+  return defaultRpc;
+}
+
+let activeChain: Chain = hardhat;
+let activePublicClient: PublicClient = createPublicClient({
   chain: hardhat,
-  transport: http("http://127.0.0.1:8545"),
+  transport: http(resolveRpcUrl(hardhat.id)),
 });
+
+/**
+ * Reconfigura o client Viem para a rede do deployment carregado.
+ * Deve ser chamado uma vez, logo após `loadDeployment()`, antes de qualquer
+ * leitura de contrato (`getPublicClient`) ou conexão de carteira.
+ */
+export function configureNetwork(deployment: Deployment) {
+  activeChain = resolveChain(deployment.chainId);
+  activePublicClient = createPublicClient({
+    chain: activeChain,
+    transport: http(resolveRpcUrl(deployment.chainId)),
+  });
+}
+
+export function getActiveChain(): Chain {
+  return activeChain;
+}
+
+export function getPublicClient() {
+  return activePublicClient;
+}
 
 export async function loadDeployment(): Promise<Deployment> {
   const response = await fetch("/deployment.json", { cache: "no-store" });
@@ -28,12 +92,18 @@ export async function loadDeployment(): Promise<Deployment> {
   return (await response.json()) as Deployment;
 }
 
-export async function ensureLocalNetwork() {
+/**
+ * Garante que a carteira injetada esteja na mesma rede do deployment ativo.
+ * Para redes conhecidas pela carteira (ex.: Sepolia) o `switchEthereumChain`
+ * basta; para a rede Hardhat local, que a carteira não conhece por padrão,
+ * cai no fallback de `addEthereumChain` com os metadados locais.
+ */
+export async function ensureNetwork() {
   if (!window.ethereum) {
     throw new Error("Nenhuma carteira injetada encontrada. Instale/abra o MetaMask.");
   }
 
-  const chainIdHex = `0x${hardhat.id.toString(16)}`;
+  const chainIdHex = `0x${activeChain.id.toString(16)}`;
 
   try {
     await window.ethereum.request({
@@ -49,13 +119,9 @@ export async function ensureLocalNetwork() {
       params: [
         {
           chainId: chainIdHex,
-          chainName: "Hardhat Local",
-          nativeCurrency: {
-            name: "ETH",
-            symbol: "ETH",
-            decimals: 18,
-          },
-          rpcUrls: ["http://127.0.0.1:8545"],
+          chainName: activeChain.name,
+          nativeCurrency: activeChain.nativeCurrency,
+          rpcUrls: [resolveRpcUrl(activeChain.id)],
         },
       ],
     });
@@ -67,10 +133,10 @@ export async function connectInjectedWallet() {
     throw new Error("Nenhuma carteira injetada encontrada. Instale/abra o MetaMask.");
   }
 
-  await ensureLocalNetwork();
+  await ensureNetwork();
 
   const walletClient = createWalletClient({
-    chain: hardhat,
+    chain: activeChain,
     transport: custom(window.ethereum),
   });
 

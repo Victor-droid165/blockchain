@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { shortAddress } from "./blockchain/utils";
 import { StatusBanner } from "./components/StatusBanner";
@@ -32,6 +32,17 @@ export default function App() {
     wallet.connect,
   );
 
+  const precatorioByTokenId = useMemo(
+    () =>
+      new Map(
+        protocol.precatorios.map((asset) => [
+          asset.tokenId.toString(),
+          asset.faceValue,
+        ]),
+      ),
+    [protocol.precatorios],
+  );
+
   const content = (() => {
     if (!deployment) {
       return (
@@ -60,11 +71,14 @@ export default function App() {
             precatorios={protocol.precatorios}
             ownedPrecatorios={protocol.ownedPrecatorios}
             listings={protocol.activeListings}
+            myOffers={protocol.myOffers}
             loading={protocol.loading}
             disabled={marketplaceUnavailable}
             onList={protocol.listPrecatorio}
             onBuy={protocol.buyListing}
             onCancel={protocol.cancelListing}
+            onMakeOffer={protocol.makeOffer}
+            onCancelOffer={protocol.cancelOffer}
           />
         );
       case "meus":
@@ -72,9 +86,11 @@ export default function App() {
           <MyPrecatoriosPage
             accountConnected={Boolean(wallet.account)}
             precatorios={protocol.ownedPrecatorios}
+            incomingOffers={protocol.incomingOffers}
             loading={protocol.loading}
             marketplaceUnavailable={marketplaceUnavailable}
             onApprove={protocol.approveMarketplace}
+            onAcceptOffer={protocol.acceptOffer}
           />
         );
       case "emitir":
@@ -107,6 +123,8 @@ export default function App() {
             marketplaceAddress={deployment.contracts.precatorioMarketplace}
             nftState={protocol.nftState}
             marketplaceState={protocol.marketplaceState}
+            sales={protocol.sales}
+            precatorioByTokenId={precatorioByTokenId}
           />
         );
     }
@@ -118,7 +136,10 @@ export default function App() {
         <div>
           <div className="brand-mark">Q/D</div>
           <h1>Quitus & Debitus</h1>
-          <p>Marketplace de precatórios representados como NFTs ERC-721.</p>
+          <p>
+            Marketplace de precatórios como NFTs ERC-721, com listagem a
+            preço fixo e ofertas em ETH de teste.
+          </p>
 
           <nav>
             {NAV.map((item) => (

@@ -3,8 +3,11 @@ import type { Address } from "viem";
 import type {
   ContractState,
   ProtocolStats,
+  SaleRecord,
 } from "../blockchain/types";
 import {
+  formatTimestamp,
+  fromCents,
   fromWei,
   shortAddress,
 } from "../blockchain/utils";
@@ -24,6 +27,8 @@ export function DashboardPage({
   marketplaceAddress,
   nftState,
   marketplaceState,
+  sales,
+  precatorioByTokenId,
 }: {
   stats: ProtocolStats;
   admin: Address;
@@ -31,12 +36,17 @@ export function DashboardPage({
   marketplaceAddress: Address;
   nftState: ContractState;
   marketplaceState: ContractState;
+  sales: SaleRecord[];
+  precatorioByTokenId: Map<string, bigint>;
 }) {
+  const recentSales = sales.slice(0, 10);
+
   return (
     <div className="page-stack">
       <div className="stats-grid">
         <StatCard label="NFTs emitidos" value={stats.totalMinted.toString()} />
         <StatCard label="Listagens ativas" value={stats.activeListings.toString()} />
+        <StatCard label="Ofertas ativas" value={stats.activeOffers.toString()} />
         <StatCard label="Indisponíveis" value={stats.staleListings.toString()} />
         <StatCard label="Vendas concluídas" value={stats.totalSales.toString()} />
         <StatCard
@@ -84,8 +94,8 @@ export function DashboardPage({
               <strong>ETH de teste</strong>
             </span>
             <span>
-              Upgrade
-              <strong>UUPS</strong>
+              Mercado secundário
+              <strong>Oferta (listagem) + demanda (lance)</strong>
             </span>
             <span>
               Encerramento
@@ -94,6 +104,55 @@ export function DashboardPage({
           </div>
         </Panel>
       </div>
+
+      <Panel
+        title="Histórico de preços"
+        description="Últimas vendas concluídas no mercado secundário, vindas de listagem a preço fixo ou de oferta aceita."
+      >
+        {recentSales.length === 0 ? (
+          <div className="empty-inline">Nenhuma venda concluída ainda.</div>
+        ) : (
+          <table className="sales-table">
+            <thead>
+              <tr>
+                <th>Precatório</th>
+                <th>Preço</th>
+                <th>Origem</th>
+                <th>Vendedor</th>
+                <th>Comprador</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentSales.map((sale, index) => {
+                const faceValue = precatorioByTokenId.get(sale.tokenId.toString());
+
+                return (
+                  <tr key={`${sale.tokenId}-${sale.soldAt}-${index}`}>
+                    <td>
+                      #{sale.tokenId.toString()}
+                      {faceValue !== undefined ? ` · ${fromCents(faceValue)}` : ""}
+                    </td>
+                    <td>{fromWei(sale.price)}</td>
+                    <td>
+                      <span
+                        className={
+                          sale.source === "offer" ? "source-tag offer" : "source-tag"
+                        }
+                      >
+                        {sale.source === "offer" ? "Oferta aceita" : "Listagem"}
+                      </span>
+                    </td>
+                    <td>{shortAddress(sale.seller)}</td>
+                    <td>{shortAddress(sale.buyer)}</td>
+                    <td>{formatTimestamp(sale.soldAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </Panel>
     </div>
   );
 }

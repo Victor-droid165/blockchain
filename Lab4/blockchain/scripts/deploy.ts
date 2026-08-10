@@ -60,7 +60,10 @@ console.log("\nDeployment completed:");
 console.log(JSON.stringify(deployment, null, 2));
 console.log(`\nBlockchain deployment file: ${blockchainOutput}`);
 
-if (networkName === "localhost") {
+// O frontend não distingue rede local de rede de testes pública: ambas
+// alimentam o mesmo public/deployment.json, e o client Viem escolhe a chain
+// e o RPC certos a partir do chainId gravado nesse arquivo.
+if (networkName === "localhost" || networkName === "sepolia") {
   const frontendOutput = path.resolve(
     process.cwd(),
     "../frontend/public/deployment.json",
@@ -74,4 +77,14 @@ if (networkName === "localhost") {
   );
 
   console.log(`Frontend deployment file: ${frontendOutput}`);
+
+  if (networkName === "sepolia") {
+    console.log(
+      "\nPara verificar o código-fonte no Etherscan, use a implementação " +
+        "registrada em .openzeppelin/sepolia.json e execute:",
+    );
+    console.log(
+      "  npx hardhat verify --network sepolia <endereco_da_implementacao>",
+    );
+  }
 }

@@ -349,6 +349,261 @@ describe("PrecatorioMarketplace", () => {
     assert.equal(listing[4], true);
   });
 
+  it("permite fazer, cancelar e receber reembolso de uma oferta sem listagem prévia", async () => {
+    const { nft, marketplace } = await deploySystem();
+    const amount = 800000000000000n;
+
+    await waitFor(
+      await nft.write.mintPrecatorio(
+        [
+          seller.account.address,
+          identifier("precatorio-oferta-cancelada"),
+          400000n,
+        ],
+        { account: admin.account },
+      ),
+    );
+
+    await waitFor(
+      await marketplace.write.makeOffer([1n], {
+        account: buyer.account,
+        value: amount,
+      }),
+    );
+
+    assert.equal(
+      await marketplace.read.activeOfferByBuyerAndToken([
+        buyer.account.address,
+        1n,
+      ]),
+      1n,
+    );
+
+    await assert.rejects(
+      marketplace.write.makeOffer([1n], {
+        account: buyer.account,
+        value: amount,
+      }),
+    );
+
+    await assert.rejects(
+      marketplace.write.makeOffer([1n], {
+        account: seller.account,
+        value: amount,
+      }),
+    );
+
+    await assert.rejects(
+      marketplace.write.cancelOffer([1n], { account: outsider.account }),
+    );
+
+    await waitFor(
+      await marketplace.write.cancelOffer([1n], {
+        account: buyer.account,
+      }),
+    );
+
+    const offer = await marketplace.read.offers([1n]);
+    assert.equal(offer[4], false);
+
+    assert.equal(
+      await marketplace.read.activeOfferByBuyerAndToken([
+        buyer.account.address,
+        1n,
+      ]),
+      0n,
+    );
+
+    await assert.rejects(
+      marketplace.write.cancelOffer([1n], { account: buyer.account }),
+    );
+  });
+
+  it("aceita uma oferta sem listagem prévia e transfere NFT e ETH", async () => {
+    const { nft, marketplace } = await deploySystem();
+    const amount = 1200000000000000n;
+
+    await waitFor(
+      await nft.write.mintPrecatorio(
+        [
+          seller.account.address,
+          identifier("precatorio-oferta-aceita"),
+          600000n,
+        ],
+        { account: admin.account },
+      ),
+    );
+
+    await waitFor(
+      await nft.write.approve([marketplace.address, 1n], {
+        account: seller.account,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.makeOffer([1n], {
+        account: buyer.account,
+        value: amount,
+      }),
+    );
+
+    await assert.rejects(
+      marketplace.write.acceptOffer([1n], { account: outsider.account }),
+    );
+
+    await waitFor(
+      await marketplace.write.acceptOffer([1n], {
+        account: seller.account,
+      }),
+    );
+
+    assertAddressEqual(await nft.read.ownerOf([1n]), buyer.account.address);
+
+    const offer = await marketplace.read.offers([1n]);
+    assert.equal(offer[4], false);
+
+    assert.equal(await marketplace.read.totalSales(), 1n);
+    assert.equal(await marketplace.read.lastSalePrice(), amount);
+
+    await assert.rejects(
+      marketplace.write.acceptOffer([1n], { account: seller.account }),
+    );
+  });
+
+  it("encerra a listagem a preço fixo ao aceitar uma oferta concorrente pelo mesmo NFT", async () => {
+    const { nft, marketplace } = await deploySystem();
+    const offerAmount = 900000000000000n;
+
+    await mintAndApprove(
+      nft,
+      marketplace.address,
+      "precatorio-oferta-vs-listagem",
+    );
+
+    await waitFor(
+      await marketplace.write.list([1n, 2000000000000000n], {
+        account: seller.account,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.makeOffer([1n], {
+        account: buyer.account,
+        value: offerAmount,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.acceptOffer([1n], {
+        account: seller.account,
+      }),
+    );
+
+    assertAddressEqual(await nft.read.ownerOf([1n]), buyer.account.address);
+
+    assert.equal(
+      await marketplace.read.activeListingByTokenId([1n]),
+      0n,
+    );
+
+    const listing = await marketplace.read.listings([1n]);
+    assert.equal(listing[4], false);
+  });
+
+  it("permite ao novo proprietário aceitar uma oferta feita antes da compra em listagem", async () => {
+    const { nft, marketplace } = await deploySystem();
+    const listingPrice = 1000000000000000n;
+    const offerAmount = 1500000000000000n;
+
+    await mintAndApprove(
+      nft,
+      marketplace.address,
+      "precatorio-oferta-pos-venda",
+    );
+
+    await waitFor(
+      await marketplace.write.list([1n, listingPrice], {
+        account: seller.account,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.makeOffer([1n], {
+        account: outsider.account,
+        value: offerAmount,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.buy([1n], {
+        account: buyer.account,
+        value: listingPrice,
+      }),
+    );
+
+    assertAddressEqual(await nft.read.ownerOf([1n]), buyer.account.address);
+
+    await waitFor(
+      await nft.write.approve([marketplace.address, 1n], {
+        account: buyer.account,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.acceptOffer([1n], {
+        account: buyer.account,
+      }),
+    );
+
+    assertAddressEqual(
+      await nft.read.ownerOf([1n]),
+      outsider.account.address,
+    );
+  });
+
+  it("continua permitindo cancelOffer e devolvendo ETH mesmo com o marketplace pausado ou invalidado", async () => {
+    const { nft, marketplace } = await deploySystem();
+    const amount = 500000000000000n;
+
+    await waitFor(
+      await nft.write.mintPrecatorio(
+        [
+          seller.account.address,
+          identifier("precatorio-oferta-pausado"),
+          200000n,
+        ],
+        { account: admin.account },
+      ),
+    );
+
+    await waitFor(
+      await marketplace.write.makeOffer([1n], {
+        account: buyer.account,
+        value: amount,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.pause([], { account: admin.account }),
+    );
+
+    await assert.rejects(
+      marketplace.write.makeOffer([1n], {
+        account: outsider.account,
+        value: amount,
+      }),
+    );
+
+    await waitFor(
+      await marketplace.write.cancelOffer([1n], {
+        account: buyer.account,
+      }),
+    );
+
+    const offer = await marketplace.read.offers([1n]);
+    assert.equal(offer[4], false);
+  });
+
   it("invalida permanentemente operações e upgrades do marketplace", async () => {
     const { nft, marketplace } = await deploySystem();
 
@@ -363,6 +618,13 @@ describe("PrecatorioMarketplace", () => {
         [1n, 5000n],
         { account: seller.account },
       ),
+    );
+
+    await waitFor(
+      await marketplace.write.makeOffer([1n], {
+        account: outsider.account,
+        value: 3000n,
+      }),
     );
 
     await waitFor(
@@ -391,6 +653,26 @@ describe("PrecatorioMarketplace", () => {
         { account: seller.account },
       ),
     );
+
+    await assert.rejects(
+      marketplace.write.makeOffer([1n], {
+        account: buyer.account,
+        value: 4000n,
+      }),
+    );
+
+    await assert.rejects(
+      marketplace.write.acceptOffer([1n], { account: seller.account }),
+    );
+
+    await waitFor(
+      await marketplace.write.cancelOffer([1n], {
+        account: outsider.account,
+      }),
+    );
+
+    const refundedOffer = await marketplace.read.offers([1n]);
+    assert.equal(refundedOffer[4], false);
 
     await assert.rejects(
       marketplace.write.unpause(

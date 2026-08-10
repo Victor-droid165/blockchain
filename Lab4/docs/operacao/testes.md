@@ -29,7 +29,7 @@ Cobre:
 
 ## `PrecatorioMarketplace.test.ts`
 
-Cobre:
+Cobre o lado da oferta (listagem):
 
 - listagem de um NFT completo;
 - exigência de propriedade;
@@ -43,6 +43,20 @@ Cobre:
 - upgrade UUPS preservando endereço e listagens;
 - invalidação permanente;
 - bloqueio de compra, cancelamento, `unpause` e upgrade após invalidação.
+
+E o lado da demanda (oferta/lance):
+
+- criação, cancelamento e reembolso de uma oferta sem listagem prévia;
+- prevenção de oferta duplicada do mesmo comprador no mesmo `tokenId` e de oferta do proprietário sobre o próprio NFT;
+- aceite de oferta com transferência do NFT e do ETH escrowado;
+- encerramento automático da listagem a preço fixo ao aceitar uma oferta concorrente pelo mesmo NFT;
+- aceite de oferta pelo **novo** proprietário depois de uma venda por listagem (a oferta sobrevive à troca de proprietário);
+- `cancelOffer` continuando disponível mesmo com o marketplace pausado ou permanentemente invalidado;
+- bloqueio de `makeOffer`/`acceptOffer` durante pausa e depois de invalidação.
+
+## Integração contínua
+
+O workflow [`.github/workflows/lab4-ci.yml`](../../../.github/workflows/lab4-ci.yml), na raiz do repositório, roda `npm ci`, compila os contratos, executa `npm test` e builda o frontend a cada push/PR que toque a pasta `Lab4/`. Serve como evidência automatizada e reprodutível de que o repositório permanece funcional, complementando a suíte de testes.
 
 ## Comparação de endereços
 

@@ -16,12 +16,13 @@ Ambos usam Mermaid e representam **somente a implementação vigente**.
 ## Modelo e decisão arquitetural
 
 - [`modelo-solucao.md`](./modelo-solucao.md) — domínio, regras, segurança, limitações e decisões técnicas atuais;
-- [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md) — histórico da simplificação para ERC-721, marketplace, UUPS e invalidação permanente.
+- [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md) — histórico da simplificação para ERC-721, marketplace, UUPS e invalidação permanente;
+- [`decisoes/livro-de-ofertas-e-rede-publica.md`](./decisoes/livro-de-ofertas-e-rede-publica.md) — ofertas (lado de demanda), rede Sepolia, frontend multi-rede e CI, dentro do escopo NFT já confirmado.
 
 ## Fluxos
 
 - [`fluxos/tokenizacao-precatorio.md`](./fluxos/tokenizacao-precatorio.md) — entrada mínima e emissão do `PrecatorioNFT`;
-- [`fluxos/mercado-secundario.md`](./fluxos/mercado-secundario.md) — aprovação, listagem, compra e cancelamento.
+- [`fluxos/mercado-secundario.md`](./fluxos/mercado-secundario.md) — aprovação, listagem, compra, cancelamento, ofertas e aceite de ofertas.
 
 ## Operação
 
@@ -40,7 +41,8 @@ docs/
 │   ├── sistema.md
 │   └── contratos.md
 ├── decisoes/
-│   └── revisao-escopo-nft.md
+│   ├── revisao-escopo-nft.md
+│   └── livro-de-ofertas-e-rede-publica.md
 ├── fluxos/
 │   ├── tokenizacao-precatorio.md
 │   └── mercado-secundario.md

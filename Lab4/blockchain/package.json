@@ -9,6 +9,7 @@
     "deploy": "hardhat run scripts/deploy.ts",
     "node": "hardhat node",
     "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "upgrade-demo:localhost": "hardhat run scripts/upgrade-demo.ts --network localhost"
   },
   "devDependencies": {
@@ -17,6 +18,7 @@
     "@openzeppelin/contracts": "5.6.1",
     "@openzeppelin/contracts-upgradeable": "5.6.1",
     "@openzeppelin/hardhat-upgrades": "4.1.0",
+    "dotenv": "^17.4.2",
     "hardhat": "3.12.0",
     "viem": "2.55.11"
   },

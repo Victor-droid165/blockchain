@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { loadDeployment } from "../blockchain/client";
+import { configureNetwork, loadDeployment } from "../blockchain/client";
 import type { Deployment } from "../blockchain/types";
 
 export function useDeployment() {
@@ -9,7 +9,13 @@ export function useDeployment() {
 
   useEffect(() => {
     loadDeployment()
-      .then(setDeployment)
+      .then((loaded) => {
+        // Precisa rodar antes de qualquer leitura de contrato: escolhe a
+        // chain/RPC certos (Hardhat local, Sepolia, etc.) a partir do
+        // deployment carregado.
+        configureNetwork(loaded);
+        setDeployment(loaded);
+      })
       .catch((cause: unknown) => {
         setError(cause instanceof Error ? cause.message : "Falha ao carregar deployment.");
       });

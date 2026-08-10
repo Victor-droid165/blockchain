@@ -5,15 +5,17 @@ import {
   precatorioMarketplaceAbi,
   precatorioNFTAbi,
 } from "../blockchain/abis";
-import { publicClient, type ConnectedWallet } from "../blockchain/client";
+import { getPublicClient, type ConnectedWallet } from "../blockchain/client";
 import { loadProtocolEventIndex } from "../blockchain/eventIndex";
 import type {
   AdminTarget,
   ContractState,
   Deployment,
   MarketplaceListing,
+  MarketplaceOffer,
   PrecatorioAsset,
   ProtocolStats,
+  SaleRecord,
 } from "../blockchain/types";
 import {
   hashIdentifier,
@@ -29,6 +31,8 @@ const EMPTY_STATS: ProtocolStats = {
   totalListings: 0n,
   activeListings: 0n,
   staleListings: 0n,
+  totalOffers: 0n,
+  activeOffers: 0n,
   totalSales: 0n,
   lastSalePrice: 0n,
 };
@@ -46,6 +50,8 @@ export function usePrecatorioProtocol(
   const [stats, setStats] = useState<ProtocolStats>(EMPTY_STATS);
   const [precatorios, setPrecatorios] = useState<PrecatorioAsset[]>([]);
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [offers, setOffers] = useState<MarketplaceOffer[]>([]);
+  const [sales, setSales] = useState<SaleRecord[]>([]);
   const [nftState, setNftState] = useState<ContractState>(EMPTY_STATE);
   const [marketplaceState, setMarketplaceState] =
     useState<ContractState>(EMPTY_STATE);
@@ -57,6 +63,8 @@ export function usePrecatorioProtocol(
     if (!deployment) return;
 
     setError(undefined);
+
+    const publicClient = getPublicClient();
 
     const [
       index,
@@ -104,14 +112,19 @@ export function usePrecatorioProtocol(
     const staleListings = activeListings.filter(
       (listing) => !listing.executable,
     );
+    const activeOffers = index.offers.filter((offer) => offer.active);
 
     setPrecatorios(index.precatorios);
     setListings(index.listings);
+    setOffers(index.offers);
+    setSales(index.sales);
     setStats({
       totalMinted: BigInt(index.precatorios.length),
       totalListings: BigInt(index.listings.length),
       activeListings: BigInt(activeListings.length),
       staleListings: BigInt(staleListings.length),
+      totalOffers: BigInt(index.offers.length),
+      activeOffers: BigInt(activeOffers.length),
       totalSales,
       lastSalePrice,
     });
@@ -153,7 +166,7 @@ export function usePrecatorioProtocol(
         const hash = await action(wallet);
 
         setStatus(`${label}: aguardando confirmação…`);
-        await publicClient.waitForTransactionReceipt({ hash });
+        await getPublicClient().waitForTransactionReceipt({ hash });
 
         setStatus(`${label}: transação confirmada.`);
         await refresh();
@@ -247,6 +260,49 @@ export function usePrecatorioProtocol(
     [deployment, run],
   );
 
+  const makeOffer = useCallback(
+    (tokenId: bigint, amountEth: string) =>
+      run("Oferta", async ({ walletClient, account: signer }) =>
+        walletClient.writeContract({
+          account: signer,
+          address: deployment!.contracts.precatorioMarketplace,
+          abi: precatorioMarketplaceAbi,
+          functionName: "makeOffer",
+          args: [tokenId],
+          value: toWei(amountEth),
+        }),
+      ),
+    [deployment, run],
+  );
+
+  const cancelOffer = useCallback(
+    (offerId: bigint) =>
+      run("Cancelamento da oferta", async ({ walletClient, account: signer }) =>
+        walletClient.writeContract({
+          account: signer,
+          address: deployment!.contracts.precatorioMarketplace,
+          abi: precatorioMarketplaceAbi,
+          functionName: "cancelOffer",
+          args: [offerId],
+        }),
+      ),
+    [deployment, run],
+  );
+
+  const acceptOffer = useCallback(
+    (offerId: bigint) =>
+      run("Aceite da oferta", async ({ walletClient, account: signer }) =>
+        walletClient.writeContract({
+          account: signer,
+          address: deployment!.contracts.precatorioMarketplace,
+          abi: precatorioMarketplaceAbi,
+          functionName: "acceptOffer",
+          args: [offerId],
+        }),
+      ),
+    [deployment, run],
+  );
+
   const setPaused = useCallback(
     (target: AdminTarget, paused: boolean) =>
       run(
@@ -325,6 +381,34 @@ export function usePrecatorioProtocol(
     [listings],
   );
 
+  const activeOffers = useMemo(
+    () => offers.filter((offer) => offer.active),
+    [offers],
+  );
+
+  const ownedTokenIds = useMemo(
+    () => new Set(ownedPrecatorios.map((asset) => asset.tokenId.toString())),
+    [ownedPrecatorios],
+  );
+
+  /** Ofertas enviadas pela carteira conectada, em qualquer precatório. */
+  const myOffers = useMemo(
+    () =>
+      account
+        ? activeOffers.filter((offer) => sameAddress(offer.buyer, account))
+        : [],
+    [account, activeOffers],
+  );
+
+  /** Ofertas recebidas em precatórios que a carteira conectada possui. */
+  const incomingOffers = useMemo(
+    () =>
+      activeOffers.filter((offer) =>
+        ownedTokenIds.has(offer.tokenId.toString()),
+      ),
+    [activeOffers, ownedTokenIds],
+  );
+
   const isAdmin = sameAddress(account, deployment?.admin);
 
   return {
@@ -333,6 +417,11 @@ export function usePrecatorioProtocol(
     ownedPrecatorios,
     listings,
     activeListings,
+    offers,
+    activeOffers,
+    myOffers,
+    incomingOffers,
+    sales,
     nftState,
     marketplaceState,
     isAdmin,
@@ -345,6 +434,9 @@ export function usePrecatorioProtocol(
     listPrecatorio,
     buyListing,
     cancelListing,
+    makeOffer,
+    cancelOffer,
+    acceptOffer,
     setPaused,
     invalidate,
   };

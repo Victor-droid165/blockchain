@@ -79,7 +79,36 @@ totalSales → +1
 
 Voltar a **Meus precatórios** na conta compradora e mostrar o NFT.
 
-## 5. Demonstrar pausa
+## 5. Demonstrar oferta (lado da demanda) e aceite
+
+Emitir um segundo NFT (#2) para uma terceira conta, sem listar.
+
+Com uma quarta conta (comprador interessado):
+
+1. abrir **Marketplace**;
+2. no formulário "Fazer uma oferta", selecionar o NFT #2 e propor um lance, por exemplo `0.05 ETH`;
+3. mostrar que o ETH saiu da carteira do comprador e ficou retido no contrato (`OfferMade`).
+
+Com a terceira conta (proprietária do NFT #2):
+
+4. abrir **Meus precatórios**;
+5. aprovar o marketplace para o NFT #2, se ainda não tiver feito;
+6. na seção "Ofertas recebidas" do card do NFT #2, clicar em **Aceitar**.
+
+Resultado esperado:
+
+```text
+NFT #2 → comprador que fez a oferta
+ETH escrowado → proprietário que aceitou
+offer.active → false
+totalSales → +1
+```
+
+Volte ao **Marketplace** e mostre que a oferta desapareceu de "Suas ofertas enviadas" e que a **Visão geral** agora lista essa venda no histórico de preços com origem "Oferta aceita".
+
+Opcional: repita o passo 2 e, antes do aceite, cancele a oferta pela conta compradora para mostrar a devolução do ETH escrowado (`cancelOffer`).
+
+## 6. Demonstrar pausa
 
 Com o administrador:
 
@@ -90,9 +119,9 @@ Com o administrador:
 5. executar `unpause`;
 6. mostrar que o contrato volta a operar.
 
-Explique: pausa é **temporária**.
+Explique: pausa é **temporária**. Se quiser, mostre também que `cancelOffer` continua funcionando mesmo com o marketplace pausado — o comprador de uma oferta ainda ativa consegue recuperar o depósito.
 
-## 6. Demonstrar upgrade
+## 7. Demonstrar upgrade
 
 No terminal, com os contratos ainda válidos:
 
@@ -108,7 +137,7 @@ Mostrar na saída:
 
 Explique: upgrade troca a implementação mantendo o proxy e o estado.
 
-## 7. Demonstrar invalidação permanente
+## 8. Demonstrar invalidação permanente
 
 Faça este passo **por último**, pois não existe retorno.
 
@@ -129,6 +158,10 @@ O upgrade do contrato invalidado deve falhar.
 
 Explique: invalidação encerra a validade operacional daquele proxy. O histórico continua consultável na blockchain.
 
+## Variante opcional: rede de testes pública
+
+Se o deploy em Sepolia (ver [`deploy.md`](./deploy.md)) já tiver sido feito antes da apresentação, é possível abrir o link do endereço no Etherscan para mostrar que os contratos existem fora da máquina de quem apresenta, com código-fonte verificado. Essa variante não substitui a demonstração local — só reforça a evidência de deploy em rede pública.
+
 ## Limitações a declarar
 
 - validação jurídica é off-chain;
@@ -136,4 +169,5 @@ Explique: invalidação encerra a validade operacional daquele proxy. O históri
 - ETH é apenas liquidação de teste;
 - não há integração institucional real;
 - não há indexador persistente; a PoC descobre os registros por eventos via RPC;
+- listagens e ofertas cobrem sempre o NFT completo, sem execução parcial;
 - contratos não foram auditados para produção.

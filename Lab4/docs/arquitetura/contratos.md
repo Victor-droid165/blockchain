@@ -56,10 +56,16 @@ classDiagram
         +bool invalidated
         +mapping listings
         +mapping activeListingByTokenId
+        +uint256 nextOfferId
+        +mapping offers
+        +mapping activeOfferByBuyerAndToken
         +initialize(initialOwner, nft)
         +list(tokenId, price) uint256
         +buy(listingId)
         +cancel(listingId)
+        +makeOffer(tokenId) uint256
+        +cancelOffer(offerId)
+        +acceptOffer(offerId)
         +pause()
         +unpause()
         +invalidate()
@@ -74,6 +80,14 @@ classDiagram
         +bool active
     }
 
+    class Offer {
+        +address buyer
+        +uint256 tokenId
+        +uint256 amount
+        +uint256 createdAt
+        +bool active
+    }
+
     ERC721PausableUpgradeable <|-- PrecatorioNFT
     OwnableUpgradeable <|-- PrecatorioNFT
     UUPSUpgradeable <|-- PrecatorioNFT
@@ -84,6 +98,7 @@ classDiagram
 
     PrecatorioNFT "1" --> "*" Precatorio
     PrecatorioMarketplace "1" --> "*" Listing
+    PrecatorioMarketplace "1" --> "*" Offer
     PrecatorioMarketplace --> PrecatorioNFT : safeTransferFrom(tokenId)
 ```
 
@@ -127,6 +142,20 @@ Na compra:
 
 Se qualquer chamada reverter, a transação inteira é revertida pela EVM. `buy` também usa `ReentrancyGuardTransient` da OpenZeppelin; como a PoC já compila para Cancun, o guard utiliza armazenamento transitório (EIP-1153) sem adicionar estado persistente ao layout do proxy.
 
+### Lado da demanda — `Offer`
+
+```solidity
+struct Offer {
+    address buyer;
+    uint256 tokenId;
+    uint256 amount;
+    uint256 createdAt;
+    bool active;
+}
+```
+
+`makeOffer` não exige listagem prévia: qualquer conta que não seja a proprietária atual do `tokenId` pode escrowar ETH de teste como lance. `acceptOffer` só pode ser chamado pelo proprietário atual (que precisa ter aprovado o marketplace, igual a `buy`) e, na mesma transação, encerra uma listagem a preço fixo eventualmente ativa para o mesmo `tokenId`. `cancelOffer` devolve o depósito ao comprador e, deliberadamente, não usa `whenValid`/`whenNotPaused`: como o ETH fica dentro do contrato, o comprador precisa sempre conseguir recuperá-lo.
+
 ## Estados administrativos
 
 Os dois contratos implementam:
@@ -141,6 +170,8 @@ ATIVO
 ```
 
 Depois da invalidação, `_authorizeUpgrade` também rejeita novas atualizações. `renounceOwnership()` é desabilitado nos dois contratos para preservar a capacidade administrativa necessária a pausa, upgrade e invalidação.
+
+Única exceção deliberada: `cancelOffer` continua funcionando mesmo com `PrecatorioMarketplace` pausado ou invalidado, porque é a única função mutável do contrato que devolve um saldo que já pertence ao chamador (o ETH escrowado do próprio lance), em vez de operar um estado de domínio.
 
 ## Organização dos arquivos Solidity
 

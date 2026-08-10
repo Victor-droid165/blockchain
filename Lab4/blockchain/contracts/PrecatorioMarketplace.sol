@@ -33,6 +33,16 @@ contract PrecatorioMarketplace is
         bool active;
     }
 
+    /// @dev Lado de demanda do livro de ofertas: um lance em ETH de teste
+    ///      escrowado pelo próprio contrato até aceitação ou cancelamento.
+    struct Offer {
+        address buyer;
+        uint256 tokenId;
+        uint256 amount;
+        uint256 createdAt;
+        bool active;
+    }
+
     IERC721 public precatorioNFT;
 
     uint256 public nextListingId;
@@ -43,6 +53,9 @@ contract PrecatorioMarketplace is
     mapping(uint256 => Listing) public listings;
     mapping(uint256 => uint256) public activeListingByTokenId;
 
+    uint256 public nextOfferId;
+    mapping(uint256 => Offer) public offers;
+    mapping(address => mapping(uint256 => uint256)) public activeOfferByBuyerAndToken;
 
     event PrecatorioListed(
         uint256 indexed listingId,
@@ -68,6 +81,35 @@ contract PrecatorioMarketplace is
         uint256 cancelledAt
     );
 
+    /// @dev Lado de demanda: um comprador propôs um lance por um `tokenId`,
+    ///      sem depender de o proprietário ter criado uma listagem antes.
+    event OfferMade(
+        uint256 indexed offerId,
+        uint256 indexed tokenId,
+        address indexed buyer,
+        uint256 amount,
+        uint256 createdAt
+    );
+
+    event OfferCancelled(
+        uint256 indexed offerId,
+        uint256 indexed tokenId,
+        address indexed buyer,
+        uint256 cancelledAt
+    );
+
+    /// @dev Preenche o histórico de preços do mercado secundário junto com
+    ///      `PrecatorioSold`: a venda pode se originar de uma listagem a
+    ///      preço fixo (`buy`) ou da aceitação de um lance (`acceptOffer`).
+    event OfferAccepted(
+        uint256 indexed offerId,
+        uint256 indexed tokenId,
+        address indexed seller,
+        address buyer,
+        uint256 amount,
+        uint256 acceptedAt
+    );
+
     event ContractInvalidated(
         address indexed account,
         uint256 invalidatedAt
@@ -84,6 +126,12 @@ contract PrecatorioMarketplace is
     error UnauthorizedSeller();
     error CannotBuyOwnListing();
     error TransferFailed();
+    error InvalidOfferAmount();
+    error OfferNotFound();
+    error OfferInactive();
+    error UnauthorizedBuyer();
+    error CannotOfferOwnToken();
+    error OfferAlreadyActiveForToken();
     error ContractInvalidatedPermanently();
     error OwnershipRenouncementDisabled();
 
@@ -113,6 +161,7 @@ contract PrecatorioMarketplace is
 
         precatorioNFT = IERC721(precatorioNFTAddress);
         nextListingId = 1;
+        nextOfferId = 1;
     }
 
     /**
@@ -236,6 +285,136 @@ contract PrecatorioMarketplace is
         );
     }
 
+    /**
+     * @notice Lado de demanda do livro de ofertas: propõe um lance em ETH de
+     *         teste por um precatório específico, sem exigir listagem prévia.
+     * @dev O valor do lance fica escrowado no contrato até aceitação ou
+     *      cancelamento. Cada comprador mantém no máximo uma oferta ativa
+     *      por `tokenId`.
+     */
+    function makeOffer(
+        uint256 tokenId
+    ) external payable whenValid whenNotPaused returns (uint256 offerId) {
+        if (msg.value == 0) revert InvalidOfferAmount();
+        if (precatorioNFT.ownerOf(tokenId) == msg.sender) {
+            revert CannotOfferOwnToken();
+        }
+        if (activeOfferByBuyerAndToken[msg.sender][tokenId] != 0) {
+            revert OfferAlreadyActiveForToken();
+        }
+
+        offerId = nextOfferId++;
+
+        offers[offerId] = Offer({
+            buyer: msg.sender,
+            tokenId: tokenId,
+            amount: msg.value,
+            createdAt: block.timestamp,
+            active: true
+        });
+
+        activeOfferByBuyerAndToken[msg.sender][tokenId] = offerId;
+
+        emit OfferMade(
+            offerId,
+            tokenId,
+            msg.sender,
+            msg.value,
+            block.timestamp
+        );
+    }
+
+    /**
+     * @notice Retira um lance ainda ativo e devolve o ETH escrowado.
+     * @dev Deliberadamente sem `whenValid`/`whenNotPaused`: como o lance
+     *      mantém ETH escrowado neste contrato, o comprador precisa sempre
+     *      conseguir recuperar o próprio valor, mesmo com o marketplace
+     *      pausado ou permanentemente invalidado. Não há operação de domínio
+     *      aqui, só a devolução de um saldo que já pertence ao chamador.
+     */
+    function cancelOffer(
+        uint256 offerId
+    ) external nonReentrant {
+        Offer storage offer = _activeOffer(offerId);
+
+        if (offer.buyer != msg.sender) revert UnauthorizedBuyer();
+
+        offer.active = false;
+        activeOfferByBuyerAndToken[msg.sender][offer.tokenId] = 0;
+
+        emit OfferCancelled(
+            offerId,
+            offer.tokenId,
+            msg.sender,
+            block.timestamp
+        );
+
+        (bool sent, ) = payable(msg.sender).call{value: offer.amount}("");
+        if (!sent) revert TransferFailed();
+    }
+
+    /**
+     * @notice Lado da oferta aceita o lance de um comprador pelo precatório.
+     * @dev Só o proprietário atual do `tokenId` pode aceitar, e o marketplace
+     *      precisa estar aprovado, igual ao fluxo de `buy`. Uma listagem a
+     *      preço fixo eventualmente ativa para o mesmo `tokenId` é encerrada
+     *      na mesma transação para não sobreviver à troca de proprietário.
+     */
+    function acceptOffer(
+        uint256 offerId
+    ) external whenValid whenNotPaused nonReentrant {
+        Offer storage offer = _activeOffer(offerId);
+
+        if (precatorioNFT.ownerOf(offer.tokenId) != msg.sender) {
+            revert NotTokenOwner();
+        }
+
+        bool approved = (
+            precatorioNFT.getApproved(offer.tokenId) == address(this) ||
+            precatorioNFT.isApprovedForAll(msg.sender, address(this))
+        );
+
+        if (!approved) revert MarketplaceNotApproved();
+
+        address buyer = offer.buyer;
+        uint256 tokenId = offer.tokenId;
+        uint256 amount = offer.amount;
+
+        offer.active = false;
+        activeOfferByBuyerAndToken[buyer][tokenId] = 0;
+
+        uint256 existingListingId = activeListingByTokenId[tokenId];
+        if (existingListingId != 0) {
+            Listing storage existingListing = listings[existingListingId];
+            existingListing.active = false;
+            activeListingByTokenId[tokenId] = 0;
+
+            emit ListingCancelled(
+                existingListingId,
+                tokenId,
+                existingListing.seller,
+                block.timestamp
+            );
+        }
+
+        totalSales += 1;
+        lastSalePrice = amount;
+
+        precatorioNFT.safeTransferFrom(msg.sender, buyer, tokenId);
+
+        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        if (!sent) revert TransferFailed();
+
+        emit OfferAccepted(
+            offerId,
+            tokenId,
+            msg.sender,
+            buyer,
+            amount,
+            block.timestamp
+        );
+    }
+
     function pause() external onlyOwner whenValid {
         _pause();
     }
@@ -280,6 +459,15 @@ contract PrecatorioMarketplace is
 
         if (listing.seller == address(0)) revert ListingNotFound();
         if (!listing.active) revert ListingInactive();
+    }
+
+    function _activeOffer(
+        uint256 offerId
+    ) private view returns (Offer storage offer) {
+        offer = offers[offerId];
+
+        if (offer.buyer == address(0)) revert OfferNotFound();
+        if (!offer.active) revert OfferInactive();
     }
 
     function _authorizeUpgrade(

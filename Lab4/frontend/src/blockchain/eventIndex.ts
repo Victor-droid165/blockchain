@@ -4,11 +4,13 @@ import {
   precatorioMarketplaceAbi,
   precatorioNFTAbi,
 } from "./abis";
-import { publicClient } from "./client";
+import { getPublicClient } from "./client";
 import type {
   Deployment,
   MarketplaceListing,
+  MarketplaceOffer,
   PrecatorioAsset,
+  SaleRecord,
 } from "./types";
 import { sameAddress } from "./utils";
 
@@ -28,8 +30,38 @@ type ListedEventArgs = {
   createdAt?: bigint;
 };
 
+type SoldEventArgs = {
+  listingId?: bigint;
+  tokenId?: bigint;
+  seller?: Address;
+  buyer?: Address;
+  price?: bigint;
+  soldAt?: bigint;
+};
+
 type ClosedListingArgs = {
   listingId?: bigint;
+};
+
+type OfferMadeArgs = {
+  offerId?: bigint;
+  tokenId?: bigint;
+  buyer?: Address;
+  amount?: bigint;
+  createdAt?: bigint;
+};
+
+type ClosedOfferArgs = {
+  offerId?: bigint;
+};
+
+type OfferAcceptedArgs = {
+  offerId?: bigint;
+  tokenId?: bigint;
+  seller?: Address;
+  buyer?: Address;
+  amount?: bigint;
+  acceptedAt?: bigint;
 };
 
 function required<T>(value: T | undefined, field: string): T {
@@ -42,16 +74,32 @@ function required<T>(value: T | undefined, field: string): T {
 /**
  * Reconstitui o índice leve da PoC a partir dos eventos dos proxies.
  * Não é um indexador persistente: os logs continuam vindo diretamente do RPC.
+ *
+ * Cobre os dois lados do mercado secundário — listagens a preço fixo
+ * (oferta do vendedor) e lances em ETH de teste (demanda do comprador,
+ * `makeOffer`/`acceptOffer`/`cancelOffer`) — e unifica as vendas concluídas
+ * de ambos os fluxos em `sales`, usado como histórico de preços.
  */
 export async function loadProtocolEventIndex(
   deployment: Deployment,
 ): Promise<{
   precatorios: PrecatorioAsset[];
   listings: MarketplaceListing[];
+  offers: MarketplaceOffer[];
+  sales: SaleRecord[];
 }> {
+  const publicClient = getPublicClient();
   const fromBlock = BigInt(deployment.deploymentBlock ?? "0");
 
-  const [mintLogs, listedLogs, soldLogs, cancelledLogs] = await Promise.all([
+  const [
+    mintLogs,
+    listedLogs,
+    soldLogs,
+    cancelledLogs,
+    offerMadeLogs,
+    offerCancelledLogs,
+    offerAcceptedLogs,
+  ] = await Promise.all([
     publicClient.getContractEvents({
       address: deployment.contracts.precatorioNFT,
       abi: precatorioNFTAbi,
@@ -80,6 +128,27 @@ export async function loadProtocolEventIndex(
       fromBlock,
       toBlock: "latest",
     }),
+    publicClient.getContractEvents({
+      address: deployment.contracts.precatorioMarketplace,
+      abi: precatorioMarketplaceAbi,
+      eventName: "OfferMade",
+      fromBlock,
+      toBlock: "latest",
+    }),
+    publicClient.getContractEvents({
+      address: deployment.contracts.precatorioMarketplace,
+      abi: precatorioMarketplaceAbi,
+      eventName: "OfferCancelled",
+      fromBlock,
+      toBlock: "latest",
+    }),
+    publicClient.getContractEvents({
+      address: deployment.contracts.precatorioMarketplace,
+      abi: precatorioMarketplaceAbi,
+      eventName: "OfferAccepted",
+      fromBlock,
+      toBlock: "latest",
+    }),
   ]);
 
   const listingsById = new Map<string, MarketplaceListing>();
@@ -104,6 +173,37 @@ export async function loadProtocolEventIndex(
     const id = required(args.listingId, "listingId");
     const listing = listingsById.get(id.toString());
     if (listing) listing.active = false;
+  }
+
+  const offersById = new Map<string, MarketplaceOffer>();
+
+  for (const log of offerMadeLogs) {
+    const args = log.args as OfferMadeArgs;
+    const id = required(args.offerId, "offerId");
+
+    offersById.set(id.toString(), {
+      id,
+      buyer: required(args.buyer, "buyer"),
+      tokenId: required(args.tokenId, "tokenId"),
+      amount: required(args.amount, "amount"),
+      createdAt: required(args.createdAt, "createdAt"),
+      active: true,
+      executable: true,
+    });
+  }
+
+  for (const log of offerCancelledLogs) {
+    const args = log.args as ClosedOfferArgs;
+    const id = required(args.offerId, "offerId");
+    const offer = offersById.get(id.toString());
+    if (offer) offer.active = false;
+  }
+
+  for (const log of offerAcceptedLogs) {
+    const args = log.args as ClosedOfferArgs;
+    const id = required(args.offerId, "offerId");
+    const offer = offersById.get(id.toString());
+    if (offer) offer.active = false;
   }
 
   const activeListingByTokenId = new Map<string, bigint>();
@@ -183,10 +283,84 @@ export async function loadProtocolEventIndex(
       }),
   );
 
+  // A oferta não depende de quem a criou continuar dono do NFT: quem aceita
+  // é sempre o proprietário atual. A única pré-condição de execução é ele
+  // ter aprovado o marketplace, exatamente como no fluxo de listagem.
+  await Promise.all(
+    [...offersById.values()]
+      .filter((offer) => offer.active)
+      .map(async (offer) => {
+        const owner = ownerByTokenId.get(offer.tokenId.toString());
+
+        if (!owner) {
+          offer.executable = false;
+          offer.unavailableReason = "Precatório não encontrado.";
+          return;
+        }
+
+        const [approvedAddress, approvedForAll] = (await Promise.all([
+          publicClient.readContract({
+            address: deployment.contracts.precatorioNFT,
+            abi: precatorioNFTAbi,
+            functionName: "getApproved",
+            args: [offer.tokenId],
+          }),
+          publicClient.readContract({
+            address: deployment.contracts.precatorioNFT,
+            abi: precatorioNFTAbi,
+            functionName: "isApprovedForAll",
+            args: [owner, deployment.contracts.precatorioMarketplace],
+          }),
+        ])) as [Address, boolean];
+
+        if (
+          !sameAddress(
+            approvedAddress,
+            deployment.contracts.precatorioMarketplace,
+          ) &&
+          !approvedForAll
+        ) {
+          offer.executable = false;
+          offer.unavailableReason =
+            "O proprietário atual ainda não aprovou o marketplace.";
+        }
+      }),
+  );
+
+  const sales: SaleRecord[] = [
+    ...soldLogs.map((log) => {
+      const args = log.args as SoldEventArgs;
+      return {
+        tokenId: required(args.tokenId, "tokenId"),
+        seller: required(args.seller, "seller"),
+        buyer: required(args.buyer, "buyer"),
+        price: required(args.price, "price"),
+        soldAt: required(args.soldAt, "soldAt"),
+        source: "listing" as const,
+      };
+    }),
+    ...offerAcceptedLogs.map((log) => {
+      const args = log.args as OfferAcceptedArgs;
+      return {
+        tokenId: required(args.tokenId, "tokenId"),
+        seller: required(args.seller, "seller"),
+        buyer: required(args.buyer, "buyer"),
+        price: required(args.amount, "amount"),
+        soldAt: required(args.acceptedAt, "acceptedAt"),
+        source: "offer" as const,
+      };
+    }),
+  ].sort((a, b) => (a.soldAt === b.soldAt ? 0 : a.soldAt > b.soldAt ? -1 : 1));
+
   precatorios.sort((a, b) => Number(a.tokenId - b.tokenId));
+
   const listings = [...listingsById.values()].sort((a, b) =>
     a.id === b.id ? 0 : a.id > b.id ? -1 : 1,
   );
 
-  return { precatorios, listings };
+  const offers = [...offersById.values()].sort((a, b) =>
+    a.id === b.id ? 0 : a.id > b.id ? -1 : 1,
+  );
+
+  return { precatorios, listings, offers, sales };
 }
