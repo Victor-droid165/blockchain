@@ -1,6 +1,35 @@
+# macOS
+.DS_Store
 **/.DS_Store
-.env
-artifacts/
-cache/
-node_modules/
-coverage/
+
+# Dependencies
+**/node_modules/
+
+# Environment
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Hardhat
+**/blockchain/artifacts/
+**/blockchain/cache/
+
+# Frontend
+**/frontend/dist/
+**/frontend/public/deployment.json
+
+# TypeScript
+**/*.tsbuildinfo
+
+# Tests
+**/coverage/
+
+# IDEs
+.idea/
+.vscode/
