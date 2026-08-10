@@ -1,80 +1,97 @@
-import { useState } from "react";
 import type { Address } from "viem";
 
-import { FormField } from "../components/FormField";
+import type {
+  ContractState,
+  ProtocolStats,
+} from "../blockchain/types";
+import {
+  fromWei,
+  shortAddress,
+} from "../blockchain/utils";
 import { Panel } from "../components/Panel";
 import { StatCard } from "../components/StatCard";
-import type { ProtocolStats } from "../blockchain/types";
-import { formatIndex, fromInternalUnits } from "../blockchain/utils";
+
+function stateLabel(state: ContractState) {
+  if (state.invalidated) return "Invalidado";
+  if (state.paused) return "Pausado";
+  return "Ativo";
+}
 
 export function DashboardPage({
-  account,
   stats,
-  issuer,
-  loading,
-  onUpdateIndex,
-  onSync,
+  admin,
+  nftAddress,
+  marketplaceAddress,
+  nftState,
+  marketplaceState,
 }: {
-  account?: Address;
   stats: ProtocolStats;
-  issuer: Address;
-  loading: boolean;
-  onUpdateIndex: (index: bigint) => Promise<unknown>;
-  onSync: (account: Address) => Promise<unknown>;
+  admin: Address;
+  nftAddress: Address;
+  marketplaceAddress: Address;
+  nftState: ContractState;
+  marketplaceState: ContractState;
 }) {
-  const [newIndex, setNewIndex] = useState("1010000");
-
   return (
     <div className="page-stack">
       <div className="stats-grid">
-        <StatCard label="Saldo QTS" value={fromInternalUnits(stats.qtsBalance)} />
+        <StatCard label="NFTs emitidos" value={stats.totalMinted.toString()} />
+        <StatCard label="Listagens ativas" value={stats.activeListings.toString()} />
+        <StatCard label="Indisponíveis" value={stats.staleListings.toString()} />
+        <StatCard label="Vendas concluídas" value={stats.totalSales.toString()} />
         <StatCard
-          label="Saldo corrigido"
-          value={fromInternalUnits(stats.qtsPreviewBalance)}
-          detail="Preview pelo índice atual"
+          label="Último preço"
+          value={stats.totalSales === 0n ? "—" : fromWei(stats.lastSalePrice)}
         />
-        <StatCard label="Índice monetário" value={formatIndex(stats.currentIndex)} />
-        <StatCard label="Total compensado" value={fromInternalUnits(stats.totalCompensated)} />
-        <StatCard label="Negociações" value={stats.totalTrades.toString()} />
-        <StatCard label="Último preço" value={`${stats.lastTradePriceWei} wei`} />
+        <StatCard
+          label="PrecatorioNFT"
+          value={stateLabel(nftState)}
+          detail={nftState.invalidated ? "Estado terminal" : "ERC-721"}
+        />
+        <StatCard
+          label="Marketplace"
+          value={stateLabel(marketplaceState)}
+          detail={marketplaceState.invalidated ? "Estado terminal" : "Venda de NFTs"}
+        />
       </div>
 
       <div className="two-column">
         <Panel
-          title="Atualização monetária"
-          description="Operação institucional do mock de oráculo. Apenas o operator configurado no deploy pode executar."
+          title="Arquitetura em execução"
+          description="O frontend conversa diretamente com os proxies on-chain por Viem e a carteira assina as transações."
         >
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void onUpdateIndex(BigInt(newIndex));
-            }}
-          >
-            <FormField
-              label="Novo índice cumulativo"
-              value={newIndex}
-              onChange={(event) => setNewIndex(event.target.value)}
-              inputMode="numeric"
-              required
-            />
-            <button type="submit" disabled={loading}>Atualizar índice</button>
-          </form>
+          <div className="definition-list">
+            <span>Administrador</span>
+            <code>{admin}</code>
+            <span>PrecatorioNFT</span>
+            <code>{nftAddress}</code>
+            <span>PrecatorioMarketplace</span>
+            <code>{marketplaceAddress}</code>
+          </div>
         </Panel>
 
         <Panel
-          title="Sincronizar QTS"
-          description="Materializa no saldo persistido a correção já visível no preview."
+          title="Escopo da PoC"
+          description="Cada tokenId representa um precatório individual. O marketplace transfere o NFT completo; não há QTS, DBT, compensação nem atualização monetária nesta versão."
         >
-          <div className="definition-list">
-            <span>Emissor/operator</span>
-            <code>{issuer}</code>
+          <div className="result-card">
+            <span>
+              Token
+              <strong>ERC-721</strong>
+            </span>
+            <span>
+              Liquidação
+              <strong>ETH de teste</strong>
+            </span>
+            <span>
+              Upgrade
+              <strong>UUPS</strong>
+            </span>
+            <span>
+              Encerramento
+              <strong>Invalidação permanente</strong>
+            </span>
           </div>
-          <button
-            onClick={() => account && void onSync(account)}
-            disabled={!account || loading}
-          >
-            Sincronizar minha conta
-          </button>
         </Panel>
       </div>
     </div>

@@ -1,80 +1,35 @@
 # Documentação — Quitus & Debitus
 
-Esta pasta concentra a documentação da prova de conceito do Projeto 4 — **Tokenização de Precatórios e Créditos Fiscais (Quitus & Debitus)**.
+Esta pasta documenta a versão atual da PoC do Projeto 4: **precatórios representados como NFTs ERC-721 e negociados em um marketplace on-chain**.
 
-Os documentos distinguem **o sistema efetivamente implementado** da **arquitetura revisada após feedback do professor**. Componentes ainda não implementados são identificados explicitamente como arquitetura alvo, sem serem apresentados como código já disponível.
-
-A decisão de migração para ERC-721 está em [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md). O documento também distingue pausa temporária, upgrade de um proxy válido e invalidação permanente.
+A arquitetura original baseada em QTS/DBT foi substituída após feedback do professor. O motivo da mudança e as referências técnicas permanecem registrados em [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md), sem manter o domínio antigo misturado aos diagramas atuais.
 
 ## Diagramas obrigatórios
 
-Os dois diagramas exigidos para o projeto estão em [`arquitetura/`](./arquitetura/).
+Os dois diagramas principais exigidos pelo projeto estão em:
 
-### Diagrama de arquitetura da solução
+- [`arquitetura/sistema.md`](./arquitetura/sistema.md) — componentes, comunicação e fronteira on-chain/off-chain;
+- [`arquitetura/contratos.md`](./arquitetura/contratos.md) — contratos, estruturas, funções e relações.
 
-[`arquitetura/sistema.md`](./arquitetura/sistema.md)
+Ambos usam Mermaid e representam **somente a implementação vigente**.
 
-Apresenta:
+## Modelo e decisão arquitetural
 
-- os principais componentes da solução;
-- como os componentes se comunicam;
-- a separação entre componentes **on-chain** e **off-chain**;
-- a integração entre frontend, carteira e blockchain;
-- os contratos atualmente implementados.
+- [`modelo-solucao.md`](./modelo-solucao.md) — domínio, regras, segurança, limitações e decisões técnicas atuais;
+- [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md) — histórico da simplificação para ERC-721, marketplace, UUPS e invalidação permanente.
 
-O arquivo mantém o diagrama do estado implementado e, durante a migração, um segundo diagrama da arquitetura revisada. Ambos são Mermaid, permitindo que o histórico do Git registre explicitamente a evolução arquitetural.
+## Fluxos
 
-### Diagrama de classes dos contratos inteligentes
+- [`fluxos/tokenizacao-precatorio.md`](./fluxos/tokenizacao-precatorio.md) — entrada mínima e emissão do `PrecatorioNFT`;
+- [`fluxos/mercado-secundario.md`](./fluxos/mercado-secundario.md) — aprovação, listagem, compra e cancelamento.
 
-[`arquitetura/contratos.md`](./arquitetura/contratos.md)
+## Operação
 
-Apresenta:
-
-- contratos inteligentes;
-- interfaces;
-- estruturas de dados relevantes;
-- atributos;
-- funções principais;
-- relações de herança, dependência e comunicação entre os contratos.
-
-O arquivo contém o diagrama dos contratos existentes e a estrutura ERC-721 proposta. O diagrama revisado só substituirá definitivamente o anterior quando o novo código estiver implementado.
-
-> Estes diagramas não são artefatos estáticos da primeira entrega. Eles evoluem junto com o projeto e permanecem coerentes com o código.
-
-## Decisões de arquitetura
-
-- [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md) — consenso adotado após feedback do professor, simplificação para ERC-721, marketplace e estratégia de evolução.
-
-## Fluxos funcionais
-
-Os fluxos abaixo ainda descrevem o **código atualmente executável**. Eles serão substituídos gradualmente conforme a implementação NFT entrar no repositório:
-
-- [`fluxos/tokenizacao.md`](./fluxos/tokenizacao.md) — tokenização de precatório e atualização monetária do QTS;
-- [`fluxos/compensacao.md`](./fluxos/compensacao.md) — compensação atômica entre QTS e obrigação fiscal, com DBT transitório;
-- [`fluxos/mercado-secundario.md`](./fluxos/mercado-secundario.md) — criação, execução e cancelamento de ordens de compra e venda de QTS.
-
-## Operação da PoC
-
-- [`operacao/desenvolvimento.md`](./operacao/desenvolvimento.md) — estrutura do projeto, comandos e fluxo de desenvolvimento local;
-- [`operacao/frontend.md`](./operacao/frontend.md) — organização e integração do frontend React;
-- [`operacao/deploy.md`](./operacao/deploy.md) — implantação dos contratos e geração dos endereços utilizados pelo frontend;
-- [`operacao/testes.md`](./operacao/testes.md) — testes automatizados e cenários cobertos;
-- [`operacao/roteiro-demo.md`](./operacao/roteiro-demo.md) — roteiro para demonstração da prova de conceito.
-
-## Modelo da solução
-
-[`modelo-solucao.md`](./modelo-solucao.md)
-
-Consolida:
-
-- modelo de domínio;
-- papel de QTS e DBT;
-- atualização monetária;
-- obrigação fiscal;
-- compensação;
-- mercado secundário;
-- decisões técnicas;
-- limitações da prova de conceito.
+- [`operacao/desenvolvimento.md`](./operacao/desenvolvimento.md) — estrutura, dependências e comandos;
+- [`operacao/deploy.md`](./operacao/deploy.md) — deploy dos proxies UUPS e arquivos de deployment;
+- [`operacao/frontend.md`](./operacao/frontend.md) — páginas, integração Viem e responsabilidades;
+- [`operacao/testes.md`](./operacao/testes.md) — suítes e cenários cobertos;
+- [`operacao/roteiro-demo.md`](./operacao/roteiro-demo.md) — sequência recomendada para demonstrar a PoC.
 
 ## Organização
 
@@ -87,13 +42,12 @@ docs/
 ├── decisoes/
 │   └── revisao-escopo-nft.md
 ├── fluxos/
-│   ├── tokenizacao.md
-│   ├── compensacao.md
+│   ├── tokenizacao-precatorio.md
 │   └── mercado-secundario.md
 ├── operacao/
 │   ├── desenvolvimento.md
-│   ├── frontend.md
 │   ├── deploy.md
+│   ├── frontend.md
 │   ├── testes.md
 │   └── roteiro-demo.md
 └── modelo-solucao.md
@@ -101,13 +55,4 @@ docs/
 
 ## Regra de manutenção
 
-Sempre que uma alteração no código modificar contratos, integrações, responsabilidades ou fluxos observáveis, os documentos afetados devem ser atualizados junto com a implementação.
-
-Em especial:
-
-- `arquitetura/sistema.md` deve continuar representando os componentes realmente existentes e a fronteira on-chain/off-chain;
-- `arquitetura/contratos.md` deve acompanhar contratos, atributos, funções e relações presentes no código;
-- os diagramas de fluxo devem acompanhar o comportamento efetivo da PoC;
-- funcionalidades planejadas não devem ser apresentadas como implementadas.
-
-Dessa forma, a documentação e o histórico do Git registram também a evolução da arquitetura ao longo do projeto.
+Documentação e código devem evoluir no mesmo commit quando uma alteração mudar contratos, integrações ou fluxos observáveis. Funcionalidades planejadas não devem aparecer nos diagramas como se já estivessem implementadas.

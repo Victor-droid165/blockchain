@@ -1,6 +1,8 @@
 # Lab 4 — Projeto 4: Quitus & Debitus
 
-Prova de conceito para **tokenização de precatórios (QTS)**, **registro de obrigações fiscais (DBT)**, **compensação atômica** e **mercado secundário**.
+Prova de conceito do Projeto 4 da disciplina **Aplicações e Tecnologias de Registro Distribuído**.
+
+Após simplificação de escopo discutida com o professor, a implementação atual representa **cada precatório como um NFT ERC-721** e permite negociá-lo em um marketplace on-chain.
 
 ## Equipe
 
@@ -9,81 +11,113 @@ Prova de conceito para **tokenização de precatórios (QTS)**, **registro de ob
 - Nívea Calébia Felix dos Santos
 - Victor Emanuel Barbosa Rodrigues
 
-## Estrutura do projeto
+## Escopo atual
+
+```text
+Entrada institucional mínima
+        ↓
+PrecatorioNFT (ERC-721)
+        ↓
+aprovação
+        ↓
+PrecatorioMarketplace
+        ↓
+listagem / compra / cancelamento
+        ↓
+transferência de propriedade
+```
+
+Os dois contratos usam:
+
+- pausa temporária;
+- proxy UUPS para atualização enquanto válidos;
+- invalidação permanente e irreversível.
+
+A arquitetura anterior de QTS/DBT, oráculo e compensação foi removida da árvore atual. A decisão e a justificativa da mudança permanecem em [`docs/decisoes/revisao-escopo-nft.md`](./docs/decisoes/revisao-escopo-nft.md).
+
+## Estrutura
 
 ```text
 Lab4/
-├── blockchain/              # Solidity + Hardhat + testes + deploy
+├── blockchain/
 │   ├── contracts/
+│   │   ├── PrecatorioNFT.sol
+│   │   ├── PrecatorioMarketplace.sol
+│   │   └── mocks/
+│   │       ├── PrecatorioNFTV2.sol
+│   │       └── PrecatorioMarketplaceV2.sol
 │   ├── scripts/
+│   │   ├── deploy.ts
+│   │   └── upgrade-demo.ts
 │   ├── test/
+│   │   ├── PrecatorioNFT.test.ts
+│   │   └── PrecatorioMarketplace.test.ts
 │   ├── hardhat.config.ts
 │   └── package.json
-├── frontend/                # React + Vite + TypeScript + Viem
+├── frontend/
 │   ├── public/
 │   ├── src/
+│   │   ├── blockchain/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── pages/
 │   └── package.json
-├── docs/                    # documentação do sistema e da demonstração
-├── package.json             # workspaces e comandos do projeto
-└── .nvmrc                   # Node 22
+├── docs/
+├── package.json
+└── .nvmrc
 ```
 
-> A PoC **não possui um backend HTTP/API próprio**. O frontend conversa diretamente com a blockchain local por JSON-RPC e assina transações pela carteira. A pasta `blockchain/` concentra o que antes estava espalhado na raiz do Lab4.
+> Não existe um backend HTTP/API separado nesta PoC. O frontend React conversa diretamente com a rede EVM por Viem/JSON-RPC e usa a carteira para assinar transações.
 
-## Estado das entregas
+## Stack
 
-### Entrega 1
+### Blockchain
 
-A Entrega 1 estabeleceu a arquitetura e os contratos iniciais. Os diagramas foram mantidos e evoluídos para refletir o código atual em [`docs/arquitetura/`](./docs/arquitetura/).
+- Solidity `0.8.24`;
+- Hardhat 3;
+- Viem;
+- OpenZeppelin Contracts/Upgradeable;
+- OpenZeppelin Hardhat Upgrades;
+- ERC-721;
+- UUPS.
 
-### Entrega 2 — em desenvolvimento
+### Frontend
 
-Já estão implementados:
+- React;
+- Vite;
+- TypeScript;
+- Viem;
+- MetaMask/carteira injetada.
 
-- tokenização de precatórios e emissão de QTS;
-- atualização monetária com `MonetaryOracle`;
-- registro de obrigação fiscal;
-- compensação atômica com DBT transitório;
-- mercado secundário de QTS;
-- testes automatizados com Hardhat;
-- script de deploy local;
-- frontend React para operar e demonstrar a PoC.
+## Instalação
 
-Ainda falta consolidar a execução integrada, revisar a experiência da demonstração e definir se haverá deploy em rede pública/testnet.
-
-### Entrega 3
-
-A Entrega 3 será a consolidação final: documentação revisada, demonstração, vídeo, repositório final e tag da entrega.
-
-## Requisitos
-
-- Node.js `>=22.13.0`;
-- npm;
-- MetaMask ou outra carteira injetada para usar a interface;
-- dois terminais para manter a rede local e a interface em execução.
-
-Com `nvm`:
+Na raiz de `Lab4/`:
 
 ```bash
-nvm install
 nvm use
 npm install
 ```
 
-O `npm install` na raiz instala os dois workspaces: `blockchain` e `frontend`.
+A versão esperada de Node está em `.nvmrc`.
 
-## Validar o projeto
+## Build e testes
 
 ```bash
 npm run build
 npm test
 ```
 
-O build compila primeiro os contratos e depois o frontend. Os testes automatizados ficam em [`blockchain/test/`](./blockchain/test/).
+Ou:
 
-## Executar a PoC local
+```bash
+npm run chain:build
+npm run chain:test
+npm run frontend:build
+```
 
-### Terminal 1 — blockchain local
+## Executar localmente
+
+### Terminal 1 — rede
 
 ```bash
 npm run chain:node
@@ -95,13 +129,19 @@ npm run chain:node
 npm run chain:deploy:localhost
 ```
 
-O deploy gera automaticamente:
+O deploy cria os proxies de:
 
 ```text
-frontend/public/deployment.json
+PrecatorioNFT
+PrecatorioMarketplace
 ```
 
-com os endereços dos contratos da rede local.
+e gera:
+
+```text
+blockchain/deployments/localhost.json
+frontend/public/deployment.json
+```
 
 ### Terminal 3 — frontend
 
@@ -109,29 +149,75 @@ com os endereços dos contratos da rede local.
 npm run frontend:dev
 ```
 
-Abra a URL exibida pelo Vite e conecte a carteira à rede Hardhat local (`31337`).
+Depois, conecte o MetaMask à rede Hardhat local (`31337`).
+
+## Upgrade de demonstração
+
+Com a rede local e os contratos válidos:
+
+```bash
+npm run chain:upgrade-demo:localhost
+```
+
+O script atualiza os dois proxies para implementações V2 de demonstração mantendo os mesmos endereços.
+
+## Pausa, upgrade e invalidação
+
+São três mecanismos diferentes:
+
+```text
+pause / unpause
+→ interrupção temporária
+
+upgrade UUPS
+→ nova implementação, mesmo proxy e estado preservado
+
+invalidate
+→ encerramento permanente daquele proxy
+→ sem retomada e sem novos upgrades
+```
+
+A invalidação é lógica, e não baseada em `SELFDESTRUCT`. A justificativa técnica está na documentação de decisão.
+
+## Frontend
+
+A interface possui:
+
+- **Visão geral** — estatísticas e estado dos contratos;
+- **Marketplace** — listar, comprar e cancelar anúncios;
+- **Meus precatórios** — visualizar NFTs e aprovar o marketplace;
+- **Emitir NFT** — mint institucional;
+- **Administração** — pausar, retomar e invalidar contratos.
 
 ## Documentação
 
-O índice da documentação está em [`docs/README.md`](./docs/README.md).
+Índice completo: [`docs/README.md`](./docs/README.md).
 
-Principais documentos:
+Documentos principais:
 
 - [Arquitetura do sistema](./docs/arquitetura/sistema.md)
-- [Diagrama e responsabilidades dos contratos](./docs/arquitetura/contratos.md)
+- [Diagrama dos contratos](./docs/arquitetura/contratos.md)
 - [Modelo da solução](./docs/modelo-solucao.md)
-- [Fluxo de tokenização](./docs/fluxos/tokenizacao.md)
-- [Fluxo de compensação](./docs/fluxos/compensacao.md)
-- [Fluxo de mercado secundário](./docs/fluxos/mercado-secundario.md)
+- [Revisão de escopo e referências](./docs/decisoes/revisao-escopo-nft.md)
+- [Tokenização do precatório](./docs/fluxos/tokenizacao-precatorio.md)
+- [Mercado secundário](./docs/fluxos/mercado-secundario.md)
 - [Deploy](./docs/operacao/deploy.md)
+- [Frontend](./docs/operacao/frontend.md)
 - [Testes](./docs/operacao/testes.md)
 - [Roteiro de demonstração](./docs/operacao/roteiro-demo.md)
 
-## Limitações da PoC
+## Limitações
 
-- não valida juridicamente precatórios ou obrigações fiscais;
-- não integra sistemas reais do TJPB/Fazenda;
-- não utiliza fonte oficial para o índice monetário;
-- usa ETH de teste como mock de liquidação do mercado;
-- não implementa identidade institucional, custódia de chaves ou governança de produção;
-- não substitui auditoria de segurança nem implantação permissionada de produção.
+- a PoC não valida juridicamente precatórios;
+- documentos processuais não são armazenados na blockchain;
+- ETH local é apenas um mecanismo de liquidação de teste;
+- não há integração real com TJPB/Fazenda;
+- não há identidade/custódia de chaves ou governança de produção;
+- não há indexador persistente off-chain; a descoberta da PoC usa eventos consultados diretamente pelo RPC a partir do bloco de deploy;
+- a implementação não substitui auditoria de segurança.
+
+## Entregas
+
+Os diagramas em `docs/arquitetura/` foram atualizados para refletir a arquitetura vigente. O histórico Git registra a transição do modelo QTS/DBT para ERC-721.
+
+Antes da entrega final, validar build/testes, fluxo completo da interface, documentação, vídeo e tag exigida pela disciplina.

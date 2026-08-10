@@ -1,61 +1,71 @@
 # Fluxo do mercado secundário
 
-`QuitusMarketplace` mantém um livro de ordens simplificado de QTS. O frontend lê as ordens diretamente do contrato e envia as transações pela carteira.
-
-O preço é expresso em **wei por unidade interna de QTS**; `1` unidade interna equivale a `0,01 QTS`.
-
-## Oferta de venda
+## Listagem
 
 ```mermaid
 sequenceDiagram
     actor Vendedor
-    actor Comprador
-    participant FE as Frontend React
-    participant QTS as QuitusToken
-    participant MKT as QuitusMarketplace
+    participant NFT as PrecatorioNFT
+    participant MKT as PrecatorioMarketplace
 
-    Vendedor->>FE: Aprova quantidade de QTS
-    FE->>QTS: approve(marketplace, quantidade)
-    Vendedor->>FE: Cria oferta de venda
-    FE->>MKT: createSellOrder(quantidade, preco)
-
-    Comprador->>FE: Executa ordem
-    FE->>MKT: fillSellOrder(orderId, quantidade) + ETH de teste
-    MKT->>QTS: transferFrom(vendedor, comprador, quantidade)
-    MKT->>Vendedor: transfere ETH de teste
+    Vendedor->>NFT: approve(marketplace, tokenId)
+    Vendedor->>MKT: list(tokenId, price)
+    MKT->>NFT: ownerOf(tokenId)
+    MKT->>NFT: getApproved(tokenId)
+    MKT->>MKT: cria Listing
+    MKT-->>Vendedor: PrecatorioListed
 ```
 
-Os QTS permanecem na carteira do vendedor enquanto a ordem está aberta; saldo e allowance precisam continuar suficientes na execução.
+O NFT não fica em custódia do marketplace durante a espera por comprador.
 
-## Oferta de compra
+## Compra
 
 ```mermaid
 sequenceDiagram
     actor Comprador
+    participant MKT as PrecatorioMarketplace
+    participant NFT as PrecatorioNFT
     actor Vendedor
-    participant FE as Frontend React
-    participant QTS as QuitusToken
-    participant MKT as QuitusMarketplace
 
-    Comprador->>FE: Cria oferta de compra
-    FE->>MKT: createBuyOrder(quantidade, preco) + ETH de teste
-    MKT->>MKT: Mantém ETH em escrow
-
-    Vendedor->>QTS: approve(marketplace, quantidade)
-    Vendedor->>FE: Executa ordem
-    FE->>MKT: fillBuyOrder(orderId, quantidade)
-    MKT->>QTS: transferFrom(vendedor, comprador, quantidade)
-    MKT->>Vendedor: libera ETH de teste
+    Comprador->>MKT: buy(listingId) + price
+    MKT->>MKT: valida listagem e pagamento
+    MKT->>NFT: ownerOf(tokenId)
+    MKT->>NFT: verifica aprovação
+    MKT->>MKT: active = false
+    MKT->>NFT: safeTransferFrom(vendedor, comprador, tokenId)
+    MKT->>Vendedor: envia ETH de teste
+    MKT-->>Comprador: PrecatorioSold
 ```
 
-## Execução parcial e cancelamento
+A alteração de estado ocorre antes das chamadas externas e existe proteção contra reentrada no fluxo de compra.
 
-Uma ordem pode ser preenchida em parcelas até `remaining == 0`. O maker pode executar `cancelOrder(orderId)`; em ordens de compra, o escrow referente ao saldo remanescente é devolvido.
+Se a transferência do NFT ou o pagamento falhar, a transação é revertida integralmente.
 
-## Histórico
+## Cancelamento
 
-`OrderCreated`, `OrderFilled` e `OrderCancelled` permitem reconstruir a atividade do mercado. A interface também consulta `totalTrades` e `lastTradePriceWei`.
+```mermaid
+sequenceDiagram
+    actor Vendedor
+    participant MKT as PrecatorioMarketplace
 
-## Limitação
+    Vendedor->>MKT: cancel(listingId)
+    MKT->>MKT: verifica seller
+    MKT->>MKT: active = false
+    MKT-->>Vendedor: ListingCancelled
+```
 
-O ETH é apenas um mock técnico de liquidação da PoC, não uma escolha de meio de pagamento para implantação institucional.
+## Estados administrativos
+
+```text
+pause()
+→ bloqueio temporário das operações
+
+upgrade
+→ troca de implementação enquanto o proxy for válido
+
+invalidate()
+→ bloqueio permanente
+→ sem unpause
+→ sem novas operações
+→ sem novos upgrades
+```

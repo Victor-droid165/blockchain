@@ -19,6 +19,10 @@ async function waitFor(hash: `0x${string}`) {
   await publicClient.waitForTransactionReceipt({ hash });
 }
 
+function assertAddressEqual(actual: string, expected: string) {
+  assert.equal(actual.toLowerCase(), expected.toLowerCase());
+}
+
 async function deployNFT() {
   return upgradesApi.deployProxy(
     "PrecatorioNFT",
@@ -39,7 +43,7 @@ describe("PrecatorioNFT", () => {
       ),
     );
 
-    assert.equal(await nft.read.ownerOf([1n]), holder.account.address);
+    assertAddressEqual(await nft.read.ownerOf([1n]), holder.account.address);
     assert.equal(await nft.read.nextTokenId(), 2n);
     assert.equal(await nft.read.identifiersUsed([id]), true);
 
@@ -73,6 +77,16 @@ describe("PrecatorioNFT", () => {
         { account: admin.account },
       ),
     );
+  });
+
+  it("mantém uma conta administradora ao desabilitar renúncia de ownership", async () => {
+    const nft = await deployNFT();
+
+    await assert.rejects(
+      nft.write.renounceOwnership([], { account: admin.account }),
+    );
+
+    assertAddressEqual(await nft.read.owner(), admin.account.address);
   });
 
   it("pausa e retoma as operações sem invalidar o contrato", async () => {
@@ -111,7 +125,7 @@ describe("PrecatorioNFT", () => {
       ),
     );
 
-    assert.equal(await nft.read.ownerOf([1n]), buyer.account.address);
+    assertAddressEqual(await nft.read.ownerOf([1n]), buyer.account.address);
   });
 
   it("preserva estado e endereço ao fazer upgrade UUPS enquanto o contrato é válido", async () => {
@@ -133,7 +147,7 @@ describe("PrecatorioNFT", () => {
 
     assert.equal(upgraded.address, proxyAddress);
     assert.equal(await upgraded.read.version(), 2n);
-    assert.equal(await upgraded.read.ownerOf([1n]), holder.account.address);
+    assertAddressEqual(await upgraded.read.ownerOf([1n]), holder.account.address);
 
     const data = await upgraded.read.precatorios([1n]);
     assert.equal(data[0], id);
@@ -157,7 +171,7 @@ describe("PrecatorioNFT", () => {
 
     assert.equal(await nft.read.invalidated(), true);
     assert.equal(await nft.read.paused(), true);
-    assert.equal(await nft.read.ownerOf([1n]), holder.account.address);
+    assertAddressEqual(await nft.read.ownerOf([1n]), holder.account.address);
 
     await assert.rejects(
       nft.write.unpause([], { account: admin.account }),
@@ -187,6 +201,13 @@ describe("PrecatorioNFT", () => {
       upgradesApi.upgradeProxy(nft.address, "PrecatorioNFTV2"),
     );
 
-    assert.equal(await nft.read.ownerOf([1n]), holder.account.address);
+    await assert.rejects(
+      nft.write.transferOwnership(
+        [buyer.account.address],
+        { account: admin.account },
+      ),
+    );
+
+    assertAddressEqual(await nft.read.ownerOf([1n]), holder.account.address);
   });
 });

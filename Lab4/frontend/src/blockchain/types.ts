@@ -1,34 +1,48 @@
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 
 export type Deployment = {
   network: string;
   chainId: number;
-  issuer: Address;
+  admin: Address;
+  deploymentBlock?: string;
   contracts: {
-    monetaryOracle: Address;
-    quitusToken: Address;
-    debitusToken: Address;
-    compensationManager: Address;
-    quitusMarketplace: Address;
+    precatorioNFT: Address;
+    precatorioMarketplace: Address;
   };
 };
 
-export type MarketplaceOrder = {
+export type PrecatorioAsset = {
+  tokenId: bigint;
+  identifier: Hex;
+  faceValue: bigint;
+  registeredAt: bigint;
+  owner: Address;
+  activeListingId: bigint;
+};
+
+export type MarketplaceListing = {
   id: bigint;
-  maker: Address;
-  side: "Venda" | "Compra";
-  amount: bigint;
-  remaining: bigint;
-  pricePerUnitWei: bigint;
+  seller: Address;
+  tokenId: bigint;
+  price: bigint;
   createdAt: bigint;
   active: boolean;
+  executable: boolean;
+  unavailableReason?: string;
+};
+
+export type ContractState = {
+  paused: boolean;
+  invalidated: boolean;
 };
 
 export type ProtocolStats = {
-  currentIndex: bigint;
-  qtsBalance: bigint;
-  qtsPreviewBalance: bigint;
-  totalCompensated: bigint;
-  totalTrades: bigint;
-  lastTradePriceWei: bigint;
+  totalMinted: bigint;
+  totalListings: bigint;
+  activeListings: bigint;
+  staleListings: bigint;
+  totalSales: bigint;
+  lastSalePrice: bigint;
 };
+
+export type AdminTarget = "nft" | "marketplace";

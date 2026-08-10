@@ -7,6 +7,9 @@ export default defineConfig({
   solidity: {
     version: "0.8.24",
     settings: {
+      // OpenZeppelin Contracts 5.6.x uses the MCOPY opcode in Bytes.sol.
+      // Solidity 0.8.24 supports MCOPY when compiling for Cancun.
+      evmVersion: "cancun",
       optimizer: {
         enabled: true,
         runs: 200,

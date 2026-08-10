@@ -19,6 +19,7 @@
 # Hardhat
 **/blockchain/artifacts/
 **/blockchain/cache/
+**/blockchain/deployments/*.json
 
 # Frontend
 **/frontend/dist/

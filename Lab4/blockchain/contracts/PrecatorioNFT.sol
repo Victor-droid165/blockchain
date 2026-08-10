@@ -49,6 +49,7 @@ contract PrecatorioNFT is
     error InvalidFaceValue();
     error IdentifierAlreadyUsed();
     error ContractInvalidatedPermanently();
+    error OwnershipRenouncementDisabled();
 
     modifier whenValid() {
         if (invalidated) revert ContractInvalidatedPermanently();
@@ -157,8 +158,12 @@ contract PrecatorioNFT is
         super.transferOwnership(newOwner);
     }
 
-    function renounceOwnership() public override whenValid {
-        super.renounceOwnership();
+    /**
+     * @dev Desabilitado para evitar que a PoC perca definitivamente a conta
+     *      capaz de pausar, atualizar ou invalidar o contrato.
+     */
+    function renounceOwnership() public pure override {
+        revert OwnershipRenouncementDisabled();
     }
 
     function _update(

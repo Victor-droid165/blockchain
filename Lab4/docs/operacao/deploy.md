@@ -1,26 +1,15 @@
-# Deploy da prova de conceito
+# Deploy
 
-O deploy é executado pelo workspace `blockchain` e implanta:
+O deploy oficial da PoC implanta **dois proxies UUPS**:
 
-1. `MonetaryOracle`;
-2. `QuitusToken`;
-3. `DebitusToken`;
-4. `CompensationManager`;
-5. `QuitusMarketplace`.
-
-Depois, o script configura `CompensationManager` como gerenciador autorizado de QTS e DBT.
-
-## Deploy efêmero
-
-Na raiz de `Lab4/`:
-
-```bash
-npm run chain:deploy
+```text
+PrecatorioNFT
+PrecatorioMarketplace
 ```
 
-Esse modo é útil para validar o script, mas a rede simulada termina junto com o processo.
+O antigo conjunto QTS/DBT não faz mais parte do script.
 
-## Deploy local persistente
+## Rede local
 
 Terminal 1:
 
@@ -34,31 +23,78 @@ Terminal 2:
 npm run chain:deploy:localhost
 ```
 
-O segundo comando grava automaticamente:
+O script:
+
+1. obtém a primeira conta da rede como administrador;
+2. implanta o proxy UUPS de `PrecatorioNFT`;
+3. implanta o proxy UUPS de `PrecatorioMarketplace`, apontando para o NFT;
+4. grava os endereços.
+
+Exemplo do resultado:
+
+```json
+{
+  "network": "localhost",
+  "chainId": 31337,
+  "admin": "0x...",
+  "contracts": {
+    "precatorioNFT": "0x...",
+    "precatorioMarketplace": "0x..."
+  }
+}
+```
+
+São gerados:
 
 ```text
+blockchain/deployments/localhost.json
 frontend/public/deployment.json
 ```
 
-O arquivo contém `chainId`, conta emissora/operator e endereços dos cinco contratos.
+Esses arquivos são locais e ficam ignorados pelo Git. O arquivo versionado para documentar o formato é:
 
-## Integração com o frontend
+```text
+frontend/public/deployment.example.json
+```
 
-O frontend lê `deployment.json` no carregamento. Se o arquivo não existir, a interface informa os comandos necessários para iniciar a rede e realizar o deploy.
+## Upgrade de demonstração
 
-## Migração para ERC-721
+O repositório inclui duas implementações de teste:
 
-`PrecatorioNFT.sol` já existe e é compatível com proxy UUPS, mas **o script de deploy desta página ainda implanta o conjunto legado QTS/DBT**. O deploy do proxy `PrecatorioNFT` será incorporado no commit específico de migração do deploy, depois da validação dos testes do novo contrato.
+```text
+contracts/mocks/PrecatorioNFTV2.sol
+contracts/mocks/PrecatorioMarketplaceV2.sol
+```
 
-Enquanto isso, não considerar `PrecatorioNFT` parte do cenário executado por `scripts/deploy.ts`.
+Depois do deploy local:
 
-## Rede pública ou permissionada
+```bash
+npm run chain:upgrade-demo:localhost
+```
 
-A PoC ainda não inclui credenciais nem configuração final de Sepolia, Besu ou outra rede institucional.
+O script lê os endereços em `blockchain/deployments/localhost.json` e executa `upgradeProxy` para as versões V2.
 
-Caso uma rede externa seja utilizada na entrega final:
+O objetivo é demonstrar:
 
-- as chaves privadas não devem ser versionadas;
-- os endereços reais devem ser registrados na documentação final;
-- o `deployment.json` deverá refletir a rede escolhida;
-- as limitações do mock de oráculo e do pagamento em ETH de teste devem continuar explícitas.
+```text
+mesmo endereço do proxy
++
+estado preservado
++
+nova implementação
+```
+
+As versões V2 existem apenas para teste/demonstração e adicionam `version() -> 2`.
+
+## Invalidação
+
+Invalidação não é um deploy ou upgrade. Ela é uma transação administrativa terminal executada no proxy atual.
+
+Depois de `invalidate()`:
+
+- o endereço continua existindo;
+- histórico e estado continuam consultáveis;
+- operações mutáveis ficam bloqueadas;
+- o próprio `_authorizeUpgrade` impede novos upgrades.
+
+Se a aplicação precisasse continuar após a invalidação, seria necessário implantar **outro proxy**, com outro endereço.

@@ -1,191 +1,99 @@
 # Arquitetura do sistema
 
-> **Revisão de escopo em andamento:** o primeiro diagrama representa o código que existe hoje. O segundo registra a arquitetura definida após o feedback do professor e será substituído pelo diagrama único definitivo conforme a implementação ERC-721 avançar.
-
-## Estado atualmente implementado
-
-
-A PoC atual é composta por duas partes executáveis: o **frontend React** e a **camada blockchain Hardhat/Solidity**. Não existe um servidor de aplicação próprio nesta versão.
-
-```mermaid
-flowchart LR
-    U[Usuário / instituição]
-    W[Carteira injetada<br/>MetaMask]
-
-    subgraph FE["Frontend — off-chain"]
-        UI[React + Vite + TypeScript]
-        VIEM[Viem]
-        DEP[deployment.json]
-    end
-
-    subgraph DEV["Infraestrutura local"]
-        RPC[Hardhat JSON-RPC<br/>chainId 31337]
-        SCRIPT[deploy.ts]
-    end
-
-    subgraph ON["Blockchain — on-chain"]
-        ORA[MonetaryOracle]
-        QTS[QuitusToken]
-        DBT[DebitusToken]
-        CMP[CompensationManager]
-        MKT[QuitusMarketplace]
-        PNFT[PrecatorioNFT<br/>ERC-721 + UUPS]
-    end
-
-    U --> UI
-    UI --> VIEM
-    VIEM --> W
-    W -->|transações assinadas| RPC
-    VIEM -->|consultas JSON-RPC| RPC
-    DEP --> UI
-
-    SCRIPT -->|deploy/configuração| RPC
-    SCRIPT -->|gera endereços| DEP
-
-    RPC --> ORA
-    RPC --> QTS
-    RPC --> DBT
-    RPC --> CMP
-    RPC --> MKT
-    RPC --> PNFT
-
-    ORA -->|currentIndex| QTS
-    QTS --> CMP
-    DBT --> CMP
-    MKT -->|transferFrom| QTS
-```
-
-## Organização do repositório
-
-```text
-Lab4/
-├── blockchain/  # smart contracts, testes e deploy
-├── frontend/    # aplicação React
-└── docs/        # arquitetura, fluxos e operação
-```
-
-A pasta `blockchain/` substitui a ideia genérica de “backend”. Nesta PoC, não há API HTTP, banco de dados ou serviço de aplicação intermediário.
-
-## O que fica on-chain
-
-- hash do identificador institucional do precatório;
-- hash da obrigação fiscal;
-- endereços de beneficiários, devedores e participantes das ordens;
-- saldos e oferta total de QTS/DBT;
-- índice monetário atual e último índice aplicado às contas QTS;
-- estado das obrigações fiscais;
-- referências de compensação já utilizadas;
-- ordens do mercado secundário;
-- eventos de emissão, correção, transferência, compensação e negociação.
-
-## O que permanece off-chain
-
-- documentos judiciais completos;
-- CPF, dados bancários e dados pessoais não necessários à execução dos contratos;
-- validação jurídica de precatórios e obrigações fiscais;
-- fonte institucional real do índice monetário;
-- identidade e autorização institucional de produção;
-- eventual indexação avançada, analytics e integração com sistemas do TJPB/Fazenda.
-
-## Fluxo da interface
-
-O frontend carrega os endereços de `frontend/public/deployment.json`, criado pelo script de deploy local. Leituras usam um `PublicClient` do Viem e transações usam uma carteira injetada.
-
-Não são armazenadas chaves privadas no frontend nem no repositório.
-
-## Justificativas
-
-1. **Separação de responsabilidades:** Solidity concentra regras on-chain; React concentra interação e apresentação.
-2. **Auditabilidade:** operações relevantes permanecem registradas como estado e eventos da blockchain.
-3. **Atomicidade:** a compensação atualiza QTS, DBT e obrigação fiscal na mesma transação.
-4. **Privacidade:** dados jurídicos completos não são publicados na blockchain.
-5. **PoC enxuta:** um backend HTTP não foi criado porque não é necessário para demonstrar os fluxos exigidos.
-6. **Evolução futura:** integrações institucionais, indexador e autenticação podem ser adicionados sem alterar a separação principal entre interface e contratos.
-
-## Estado atual
-
-Implementado:
-
-- `MonetaryOracle`;
-- `QuitusToken`;
-- `DebitusToken`;
-- `CompensationManager`;
-- `QuitusMarketplace`;
-- `PrecatorioNFT` ERC-721 compatível com proxy UUPS, com pausa e invalidação permanente (ainda não incluído no deploy/frontend atual);
-- testes Hardhat;
-- deploy local;
-- frontend React conectado por Viem.
-
-Não implementado:
-
-- integração com sistemas institucionais reais;
-- fonte oficial automática do índice;
-- deploy permissionado de produção;
-- indexador dedicado;
-- autenticação/identidade institucional de produção.
-
-
-## Arquitetura revisada
-
-A próxima versão simplifica a camada on-chain e coloca a negociação de precatórios individualizados no centro da PoC.
+Este diagrama representa a implementação atual da PoC.
 
 ```mermaid
 flowchart LR
     U[Usuário]
-    I[Operador institucional]
+    A[Administrador institucional]
     W[Carteira injetada<br/>MetaMask]
 
-    subgraph FE2["Frontend — off-chain"]
-        UI2[React + Vite + TypeScript]
-        VIEM2[Viem]
+    subgraph OFF["Off-chain"]
+        FE[Frontend React<br/>Vite + TypeScript]
+        VIEM[Viem]
+        DEP[deployment.json<br/>endereços + deploymentBlock]
     end
 
-    subgraph ON2["Blockchain — arquitetura revisada"]
-        PROXYNFT[Proxy<br/>PrecatorioNFT<br/>válido ou invalidado]
-        NFT[Implementação<br/>ERC-721 + UUPS]
-        PROXYMKT[Proxy<br/>Marketplace]
-        MKT2[Implementação<br/>NFT Marketplace]
+    subgraph CHAIN["On-chain — rede EVM"]
+        PNFT[Proxy UUPS<br/>PrecatorioNFT]
+        PMKT[Proxy UUPS<br/>PrecatorioMarketplace]
+        NFT_IMPL[Implementação<br/>PrecatorioNFT]
+        MKT_IMPL[Implementação<br/>PrecatorioMarketplace]
     end
 
-    U --> UI2
-    I --> UI2
-    UI2 --> VIEM2
-    VIEM2 --> W
+    U --> FE
+    A --> FE
+    FE --> VIEM
+    DEP --> FE
+    VIEM --> W
+    VIEM -->|eth_call / eventos| PNFT
+    VIEM -->|eth_call / eventos| PMKT
 
-    W -->|mint autorizado / transferências| PROXYNFT
-    W -->|listar / comprar / cancelar| PROXYMKT
+    W -->|mint / approve / transfer| PNFT
+    W -->|list / buy / cancel| PMKT
+    W -->|pause / unpause / invalidate| PNFT
+    W -->|pause / unpause / invalidate| PMKT
 
-    PROXYNFT -. delega lógica .-> NFT
-    PROXYMKT -. delega lógica .-> MKT2
-    MKT2 -->|transferFrom(tokenId)| PROXYNFT
+    PNFT -. delegatecall .-> NFT_IMPL
+    PMKT -. delegatecall .-> MKT_IMPL
+    PMKT -->|safeTransferFrom tokenId| PNFT
 ```
 
-### On-chain na arquitetura revisada
+## On-chain
 
-- propriedade dos NFTs de precatórios;
-- metadados mínimos da PoC;
-- aprovações e transferências ERC-721;
-- listagens e preços do marketplace;
-- compra e cancelamento;
-- eventos;
-- pausa de emergência temporária;
-- upgrade UUPS enquanto o contrato permanecer válido;
-- invalidação permanente, que bloqueia retomada e upgrades.
+### `PrecatorioNFT`
 
-### Off-chain na arquitetura revisada
+Responsável por:
+
+- representar cada precatório como um ERC-721 individual;
+- registrar identificador abstrato, valor de face e instante de registro;
+- controlar propriedade, aprovações e transferências;
+- restringir mint ao administrador;
+- permitir pausa temporária;
+- permitir upgrade UUPS enquanto válido;
+- permitir invalidação permanente.
+
+### `PrecatorioMarketplace`
+
+Responsável por:
+
+- registrar listagens de um `tokenId` completo;
+- armazenar preço e vendedor;
+- executar compra com ETH de teste;
+- transferir o NFT ao comprador;
+- cancelar listagens;
+- registrar estatísticas básicas de vendas;
+- oferecer pausa, upgrade e invalidação com as mesmas regras administrativas.
+
+## Off-chain
+
+Permanecem fora da blockchain:
 
 - documentos judiciais completos;
-- validação da existência e legitimidade do precatório;
-- identidade civil real;
-- dados bancários e pessoais;
-- integração com tribunais e órgãos públicos;
-- liquidação financeira regulada de produção.
+- validação jurídica do precatório;
+- identidade civil e dados bancários;
+- integração real com TJPB/Fazenda;
+- liquidação financeira regulada;
+- indexação de produção.
 
-A revisão remove da arquitetura alvo a necessidade de modelar documentos completos, QTS/DBT fungíveis, oráculo monetário e compensação fiscal como partes centrais da demonstração.
+O frontend consulta eventos e estado dos contratos diretamente por JSON-RPC e solicita assinaturas pela carteira. `deployment.json` registra o bloco inicial da implantação para limitar a faixa de logs consultada. A PoC não possui servidor HTTP/API próprio.
 
-A decisão completa está em [`../decisoes/revisao-escopo-nft.md`](../decisoes/revisao-escopo-nft.md).
+## Upgrade e invalidação
 
+Enquanto um proxy estiver válido:
 
-### Estado terminal do proxy
+```text
+Proxy → Implementação V1
+      → upgrade
+Proxy → Implementação V2
+```
 
-O proxy upgradeável não implica que o contrato possa ser atualizado para sempre. `invalidate()` encerra permanentemente a capacidade operacional daquele proxy: as leituras históricas continuam acessíveis, mas mint, aprovações, transferências, `unpause` e upgrades ficam bloqueados.
+O endereço do proxy permanece estável e o estado é preservado.
+
+Após `invalidate()`:
+
+```text
+ATIVO/PAUSADO → INVALIDADO
+```
+
+a transição é terminal. O contrato permanece consultável como registro histórico, mas operações mutáveis, `unpause` e novos upgrades são bloqueados.

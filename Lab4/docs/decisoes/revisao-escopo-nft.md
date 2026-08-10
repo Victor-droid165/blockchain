@@ -1,238 +1,135 @@
-# Revisão de escopo — NFT e marketplace
+# Decisão arquitetural — simplificação para NFT e marketplace
 
 ## Contexto
 
-Após feedback do professor, a direção da PoC foi simplificada, convergindo nos seguintes pontos:
+A primeira versão da PoC seguia a proposta original de Quitus & Debitus: QTS/DBT fungíveis, atualização monetária, compensação e mercado secundário.
 
-- substituir a tokenização fungível atual por ativos **ERC-721 (NFTs)**;
-- representar cada precatório como um ativo individual;
-- reduzir a dependência de documentos e dados jurídicos na entrada da PoC;
-- colocar o **marketplace de ativos** no centro da demonstração;
-- permitir compra, venda e transferência de propriedade pela blockchain;
-- oferecer uma interface semelhante conceitualmente a marketplaces de NFT;
-- prever uma pausa temporária de emergência;
-- permitir **invalidação permanente** do contrato quando ele não puder mais ser considerado válido;
-- permitir evolução da lógica dos contratos válidos sem depender de trocar toda a aplicação.
+Após conversa de integrantes da equipe com o professor, o escopo foi simplificado. Os dois relatos convergiram para:
 
-## Consenso adotado
+- representar precatórios como NFTs;
+- concentrar a demonstração na transação desses NFTs;
+- criar um marketplace com experiência semelhante, conceitualmente, a mercados de colecionáveis digitais;
+- abstrair documentos e entradas jurídicas complexas;
+- permitir atualização da lógica do contrato;
+- permitir também a invalidação definitiva de um contrato quando necessário.
 
-Para evitar acrescentar complexidade não confirmada, esta documentação adota como próxima arquitetura:
+Esta decisão registra como a equipe traduziu o feedback para a implementação.
+
+## Decisão
+
+A arquitetura vigente usa dois contratos de domínio:
 
 ```text
-Precatório
-    ↓
 PrecatorioNFT (ERC-721)
-    ↓
-Marketplace
-    ↓
-listagem / compra / cancelamento / transferência
+        ↓
+PrecatorioMarketplace
 ```
 
-Cada `tokenId` representa **um precatório individual**.
+Cada `tokenId` representa um precatório individual.
 
-Nesta etapa de revisão, não será criado um segundo tipo de NFT para obrigação fiscal. Os relatos deixam claro que precatórios devem ser negociados como NFTs, mas não são suficientemente precisos para justificar dois contratos ERC-721 distintos antes da implementação.
+O ERC-721 foi escolhido porque padroniza propriedade, aprovação e transferência de ativos não fungíveis identificados individualmente [1].
 
-Se uma orientação posterior exigir que outro tipo de crédito também seja tokenizado individualmente, o modelo poderá ser estendido.
+## Entrada mínima
 
-## Simplificação da entrada
-
-A PoC não precisa receber documentos judiciais completos.
-
-O mint deve trabalhar apenas com os dados mínimos necessários para demonstrar identidade do ativo e negociação, por exemplo:
+A blockchain armazena apenas:
 
 ```text
 tokenId
-valor de face
-identificador de demonstração
-data de registro
-status
-proprietário
+identifier (hash)
+faceValue
+registeredAt
+owner (via ERC-721)
 ```
 
-A validação jurídica real permanece fora do escopo.
+Documentos judiciais, CPF/CNPJ, dados bancários e validação jurídica permanecem fora da cadeia.
 
-A blockchain não precisa armazenar PDF, ordem judicial, CPF, dados bancários ou cópias de documentos.
+Essa abstração é deliberada: a PoC demonstra propriedade e transação do ativo, não a digitalização completa do processo judicial.
 
-## Mudança em relação ao modelo atual
+## Marketplace
 
-### Modelo atualmente implementado
-
-```text
-Precatório
-    ↓
-QTS fungível
-    ↓
-atualização monetária
-    ↓
-mercado de quantidades de QTS
-
-Obrigação fiscal
-    ↓
-DBT transitório
-    ↓
-compensação atômica
-```
-
-### Modelo revisado
-
-```text
-Precatório individual
-    ↓
-ERC-721
-    ↓
-NFT
-    ↓
-Marketplace
-    ↓
-novo proprietário
-```
-
-Com isso, deixam de ser centrais na próxima versão:
-
-- `ControlledToken`;
-- `QuitusToken` fungível;
-- `DebitusToken` fungível/transitório;
-- `MonetaryOracle`;
-- `CompensationManager`;
-- marketplace baseado em quantidade de QTS.
-
-Esses componentes **ainda existem no código neste commit**. A remoção ocorrerá somente depois que a substituição ERC-721 estiver implementada e testada.
-
-## Marketplace revisado
-
-O marketplace deixa de negociar quantidades fungíveis.
-
-Uma listagem passa a identificar um NFT específico:
+Uma venda identifica um NFT completo:
 
 ```solidity
-list(
-    uint256 tokenId,
-    uint256 price
-)
+list(tokenId, price)
+buy(listingId)
+cancel(listingId)
 ```
 
-Fluxo esperado:
+Não existe quantidade nem execução parcial. O NFT fica com o vendedor até a compra; para permitir a transferência, o vendedor aprova o marketplace pelo mecanismo padrão do ERC-721 [1].
+
+O ETH usado na PoC é apenas uma forma simples de demonstrar atomicamente pagamento de teste e transferência de propriedade. Não representa a liquidação financeira de uma solução institucional real.
+
+## Pausa, upgrade e invalidação são conceitos diferentes
+
+### Pausa
+
+`pause()` é um mecanismo temporário de emergência. Enquanto pausado, operações sensíveis são bloqueadas; `unpause()` permite retomada. Esse uso segue a finalidade do `Pausable` da OpenZeppelin [2].
+
+### Upgrade
+
+Enquanto o contrato estiver válido, a implementação pode ser atualizada mantendo o endereço do proxy e seu estado.
+
+A PoC usa proxy UUPS e OpenZeppelin Upgrades. O padrão UUPS coloca na implementação o mecanismo de autorização do upgrade, e os plugins da OpenZeppelin validam deployments/upgrades compatíveis [3][4].
 
 ```text
-Titular possui NFT #42
-        ↓
-aprova Marketplace
-        ↓
-lista NFT #42
-        ↓
-comprador executa compra
-        ↓
-pagamento → vendedor
-NFT #42 → comprador
-```
-
-Escopo mínimo:
-
-- listar NFT;
-- consultar listagens;
-- comprar;
-- cancelar listagem;
-- transferir propriedade;
-- emitir eventos das operações.
-
-Não é necessário implementar order book de quantidades ou execução parcial, porque um ERC-721 é indivisível.
-
-## Segurança, invalidação e evolução
-
-O feedback exige três capacidades distintas, que não devem ser tratadas como sinônimos.
-
-### Pausa de emergência
-
-`pause()` representa uma interrupção **temporária**. Enquanto pausado, operações sensíveis ficam bloqueadas, mas o administrador pode executar `unpause()` e retomar o contrato.
-
-### Upgradeabilidade
-
-Enquanto o contrato permanecer válido, um proxy UUPS mantém o endereço estável e permite trocar a implementação. Isso permite corrigir ou evoluir a lógica sem migrar a aplicação para outro endereço.
-
-```text
-Proxy válido → Implementation V1 → upgrade → Implementation V2
+Proxy X → Implementation V1
+upgrade
+Proxy X → Implementation V2
 ```
 
 ### Invalidação permanente
 
-`invalidate()` representa uma decisão **terminal e irreversível**. Após a invalidação:
+`invalidate()` representa o encerramento definitivo daquele proxy.
 
-- o contrato fica pausado;
-- não pode ser retomado por `unpause()`;
-- não pode emitir novos NFTs;
-- não permite novas aprovações;
-- não permite transferências;
-- não permite novos upgrades.
+Depois da invalidação:
 
-Consultas ao estado e ao histórico continuam possíveis porque a invalidação não tenta apagar a blockchain. Para continuar a solução depois de uma invalidação definitiva, será necessário implantar um novo contrato/proxy.
+- não há `unpause`;
+- não há mint, transferência ou aprovação no NFT;
+- não há listagem, compra ou cancelamento no marketplace;
+- não há novos upgrades;
+- o estado e o histórico continuam legíveis na blockchain.
 
-```text
-ATIVO ── pause ──> PAUSADO ── unpause ──> ATIVO
-  │
-  ├── upgrade ──> nova implementação, mesmo proxy
-  │
-  └── invalidate ──> INVALIDADO (estado terminal)
-```
+A invalidação não usa `SELFDESTRUCT`. O EIP-6780 alterou o comportamento desse opcode: fora do caso especial de criação e destruição na mesma transação, ele não remove normalmente código e storage de um contrato já existente [5]. Por isso a PoC representa o requisito como um estado terminal explícito.
 
-`selfdestruct` não será usado para representar a invalidação. O requisito será modelado explicitamente no estado do contrato.
+## Por que manter upgrade e invalidação ao mesmo tempo?
 
-## Fronteira on-chain / off-chain revisada
-
-### On-chain
-
-Pretende-se manter:
-
-- propriedade de cada NFT;
-- dados mínimos do ativo necessários à PoC;
-- aprovações e transferências;
-- listagens;
-- preço;
-- estado da listagem;
-- eventos de criação, venda e cancelamento;
-- estado de pausa e invalidação;
-- mecanismo de upgrade enquanto o contrato permanecer válido.
-
-### Off-chain
-
-Continuam fora da blockchain:
-
-- documentos processuais;
-- validação jurídica;
-- identidade civil real;
-- dados pessoais e bancários;
-- pagamento regulado de produção;
-- integrações institucionais.
-
-## Impacto no frontend
-
-O frontend atual será reaproveitado estruturalmente — React, Vite, TypeScript, Viem e conexão com carteira continuam válidos.
-
-As páginas serão ajustadas para um fluxo de marketplace de NFT:
+Os requisitos resolvem problemas diferentes:
 
 ```text
-Explorar precatórios
-Detalhe do precatório
-Meus ativos
-Criar precatório (perfil institucional)
-Listar para venda
-Comprar
-Cancelar anúncio
-Administração / pausa
+correção/evolução necessária
+→ upgrade enquanto válido
+
+problema temporário
+→ pause → correção → unpause
+
+contrato não deve mais ser aceito
+→ invalidate → estado terminal
 ```
 
-As páginas específicas de QTS, DBT, atualização monetária e compensação serão removidas ou substituídas quando a nova implementação estiver pronta.
+Assim, uma implementação pode evoluir durante sua vida útil, mas a decisão de invalidá-la fecha definitivamente aquele proxy.
 
-## Estratégia de migração
+## Controle administrativo
 
-A migração será feita em commits pequenos:
+A PoC usa `OwnableUpgradeable` para manter a administração simples. `transferOwnership` continua permitido enquanto o contrato for válido, mas `renounceOwnership` é deliberadamente desabilitado. Sem owner, a PoC perderia a capacidade de pausar, fazer upgrade ou executar a invalidação terminal exigida pelo escopo.
 
-1. registrar a revisão de escopo e atualizar diagramas;
-2. implementar `PrecatorioNFT`;
-3. adaptar o marketplace para ERC-721;
-4. consolidar pausa, upgradeabilidade e invalidação permanente no marketplace;
-5. reescrever testes e deploy;
-6. adaptar o frontend ao marketplace de NFT;
-7. remover contratos e telas do modelo antigo;
-8. consolidar os diagramas e a documentação final.
+## Componentes removidos
 
-Até a conclusão dos passos de código, a documentação distingue explicitamente **estado implementado** de **arquitetura revisada**.
+A arquitetura revisada não usa mais:
+
+- `ControlledToken`;
+- `QuitusToken`;
+- `DebitusToken`;
+- `MonetaryOracle`;
+- `CompensationManager`;
+- `QuitusMarketplace`;
+- interfaces específicas de QTS/DBT.
+
+O histórico dessas implementações permanece no Git; não é mantido na árvore atual para evitar ambiguidade sobre qual arquitetura está vigente.
+
+## Referências técnicas
+
+[1]: https://eips.ethereum.org/EIPS/eip-721 "EIP-721: Non-Fungible Token Standard"
+[2]: https://docs.openzeppelin.com/contracts/5.x/api/utils "OpenZeppelin Contracts — Pausable"
+[3]: https://docs.openzeppelin.com/contracts/5.x/api/proxy "OpenZeppelin Contracts — Proxy/UUPS"
+[4]: https://docs.openzeppelin.com/upgrades-plugins/hardhat-upgrades "OpenZeppelin Upgrades — Hardhat"
+[5]: https://eips.ethereum.org/EIPS/eip-6780 "EIP-6780: SELFDESTRUCT only in same transaction"

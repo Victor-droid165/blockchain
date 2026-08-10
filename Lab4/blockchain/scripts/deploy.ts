@@ -1,76 +1,77 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { network } from "hardhat";
+import hre from "hardhat";
+import { upgrades } from "@openzeppelin/hardhat-upgrades/viem";
 
-const { viem, networkName } = await network.create();
+const connection = await hre.network.create();
+const { viem, networkName } = connection;
+const upgradesApi = await upgrades(hre, connection);
 
 const publicClient = await viem.getPublicClient();
-const [issuer] = await viem.getWalletClients();
+const [admin] = await viem.getWalletClients();
 
-console.log(`Deploying Quitus & Debitus to ${networkName}...`);
-console.log(`Issuer/operator: ${issuer.account.address}`);
+console.log(`Deploying Quitus & Debitus NFT PoC to ${networkName}...`);
+console.log(`Administrator: ${admin.account.address}`);
 
-const oracle = await viem.deployContract(
-  "MonetaryOracle",
-  [issuer.account.address],
+// Event discovery in the frontend starts here instead of scanning from block 0.
+const deploymentBlock = await publicClient.getBlockNumber();
+
+const precatorioNFT = await upgradesApi.deployProxy(
+  "PrecatorioNFT",
+  [admin.account.address],
+  { kind: "uups" },
 );
 
-const qts = await viem.deployContract(
-  "QuitusToken",
-  [issuer.account.address, oracle.address],
+const precatorioMarketplace = await upgradesApi.deployProxy(
+  "PrecatorioMarketplace",
+  [
+    admin.account.address,
+    precatorioNFT.address,
+  ],
+  { kind: "uups" },
 );
-
-const dbt = await viem.deployContract(
-  "DebitusToken",
-  [issuer.account.address],
-);
-
-const manager = await viem.deployContract(
-  "CompensationManager",
-  [qts.address, dbt.address],
-);
-
-const marketplace = await viem.deployContract(
-  "QuitusMarketplace",
-  [qts.address],
-);
-
-const qtsManagerTx = await qts.write.setCompensationManager(
-  [manager.address],
-  { account: issuer.account },
-);
-await publicClient.waitForTransactionReceipt({ hash: qtsManagerTx });
-
-const dbtManagerTx = await dbt.write.setCompensationManager(
-  [manager.address],
-  { account: issuer.account },
-);
-await publicClient.waitForTransactionReceipt({ hash: dbtManagerTx });
 
 const deployment = {
   network: networkName,
   chainId: await publicClient.getChainId(),
-  issuer: issuer.account.address,
+  admin: admin.account.address,
+  deploymentBlock: deploymentBlock.toString(),
   contracts: {
-    monetaryOracle: oracle.address,
-    quitusToken: qts.address,
-    debitusToken: dbt.address,
-    compensationManager: manager.address,
-    quitusMarketplace: marketplace.address,
+    precatorioNFT: precatorioNFT.address,
+    precatorioMarketplace: precatorioMarketplace.address,
   },
 };
 
+const blockchainOutput = path.resolve(
+  process.cwd(),
+  "deployments",
+  `${networkName}.json`,
+);
+
+await mkdir(path.dirname(blockchainOutput), { recursive: true });
+await writeFile(
+  blockchainOutput,
+  `${JSON.stringify(deployment, null, 2)}\n`,
+  "utf8",
+);
+
 console.log("\nDeployment completed:");
 console.log(JSON.stringify(deployment, null, 2));
+console.log(`\nBlockchain deployment file: ${blockchainOutput}`);
 
 if (networkName === "localhost") {
-  const output = path.resolve(
+  const frontendOutput = path.resolve(
     process.cwd(),
     "../frontend/public/deployment.json",
   );
 
-  await mkdir(path.dirname(output), { recursive: true });
-  await writeFile(output, `${JSON.stringify(deployment, null, 2)}\n`, "utf8");
-  console.log(`\nFrontend deployment file: ${output}`);
+  await mkdir(path.dirname(frontendOutput), { recursive: true });
+  await writeFile(
+    frontendOutput,
+    `${JSON.stringify(deployment, null, 2)}\n`,
+    "utf8",
+  );
+
+  console.log(`Frontend deployment file: ${frontendOutput}`);
 }

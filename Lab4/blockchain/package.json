@@ -8,7 +8,8 @@
     "test": "hardhat test",
     "deploy": "hardhat run scripts/deploy.ts",
     "node": "hardhat node",
-    "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost"
+    "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost",
+    "upgrade-demo:localhost": "hardhat run scripts/upgrade-demo.ts --network localhost"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "5.0.7",

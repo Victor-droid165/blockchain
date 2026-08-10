@@ -1,117 +1,197 @@
 import { useMemo, useState } from "react";
+import type { Address } from "viem";
 
-import type { MarketplaceOrder } from "../blockchain/types";
-import { fromInternalUnits, shortAddress } from "../blockchain/utils";
+import type {
+  MarketplaceListing,
+  PrecatorioAsset,
+} from "../blockchain/types";
+import {
+  formatTimestamp,
+  fromCents,
+  fromWei,
+  sameAddress,
+  shortAddress,
+  shortHash,
+} from "../blockchain/utils";
 import { FormField } from "../components/FormField";
 import { Panel } from "../components/Panel";
 
 export function MarketplacePage({
-  orders,
+  account,
+  precatorios,
+  ownedPrecatorios,
+  listings,
   loading,
-  onApprove,
-  onCreateSell,
-  onCreateBuy,
-  onFill,
+  disabled,
+  onList,
+  onBuy,
   onCancel,
 }: {
-  orders: MarketplaceOrder[];
+  account?: Address;
+  precatorios: PrecatorioAsset[];
+  ownedPrecatorios: PrecatorioAsset[];
+  listings: MarketplaceListing[];
   loading: boolean;
-  onApprove: (value: string) => Promise<unknown>;
-  onCreateSell: (value: string, price: bigint) => Promise<unknown>;
-  onCreateBuy: (value: string, price: bigint) => Promise<unknown>;
-  onFill: (order: MarketplaceOrder, value: string) => Promise<unknown>;
-  onCancel: (orderId: bigint) => Promise<unknown>;
+  disabled: boolean;
+  onList: (tokenId: bigint, priceEth: string) => Promise<unknown>;
+  onBuy: (listing: MarketplaceListing) => Promise<unknown>;
+  onCancel: (listingId: bigint) => Promise<unknown>;
 }) {
-  const [approval, setApproval] = useState("100.00");
-  const [sellValue, setSellValue] = useState("100.00");
-  const [sellPrice, setSellPrice] = useState("1000000");
-  const [buyValue, setBuyValue] = useState("100.00");
-  const [buyPrice, setBuyPrice] = useState("1000000");
-  const [fillOrderId, setFillOrderId] = useState("");
-  const [fillValue, setFillValue] = useState("50.00");
+  const availableOwned = useMemo(
+    () => ownedPrecatorios.filter((asset) => asset.activeListingId === 0n),
+    [ownedPrecatorios],
+  );
 
-  const selectedOrder = useMemo(
-    () => orders.find((order) => order.id.toString() === fillOrderId),
-    [fillOrderId, orders],
+  const [tokenId, setTokenId] = useState("");
+  const [price, setPrice] = useState("0.10");
+
+  const assetByTokenId = useMemo(
+    () => new Map(precatorios.map((asset) => [asset.tokenId.toString(), asset])),
+    [precatorios],
   );
 
   return (
     <div className="page-stack">
-      <div className="three-column">
-        <Panel title="Aprovar QTS" description="Necessário antes de vender QTS pelo marketplace.">
-          <form onSubmit={(e) => { e.preventDefault(); void onApprove(approval); }}>
-            <FormField label="Limite aprovado (R$ em QTS)" value={approval} onChange={(e) => setApproval(e.target.value)} inputMode="decimal" />
-            <button type="submit" disabled={loading}>Aprovar</button>
-          </form>
-        </Panel>
+      <Panel
+        title="Listar um precatório"
+        description="O NFT permanece na carteira do vendedor até a compra. Antes de listar, aprove o marketplace na página “Meus precatórios”."
+      >
+        <form
+          className="inline-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void onList(BigInt(tokenId), price);
+          }}
+        >
+          <label className="field">
+            <span>Precatório</span>
+            <select
+              value={tokenId}
+              onChange={(event) => setTokenId(event.target.value)}
+              required
+            >
+              <option value="">Selecione um NFT</option>
+              {availableOwned.map((asset) => (
+                <option
+                  key={asset.tokenId.toString()}
+                  value={asset.tokenId.toString()}
+                >
+                  #{asset.tokenId.toString()} · {fromCents(asset.faceValue)}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <Panel title="Oferta de venda">
-          <form onSubmit={(e) => { e.preventDefault(); void onCreateSell(sellValue, BigInt(sellPrice)); }}>
-            <FormField label="Quantidade de QTS (R$)" value={sellValue} onChange={(e) => setSellValue(e.target.value)} inputMode="decimal" />
-            <FormField label="Preço em wei por unidade interna" value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} inputMode="numeric" />
-            <button type="submit" disabled={loading}>Criar venda</button>
-          </form>
-        </Panel>
+          <FormField
+            label="Preço (ETH de teste)"
+            value={price}
+            onChange={(event) => setPrice(event.target.value)}
+            inputMode="decimal"
+            required
+          />
 
-        <Panel title="Oferta de compra" description="O ETH de teste fica em escrow até execução ou cancelamento.">
-          <form onSubmit={(e) => { e.preventDefault(); void onCreateBuy(buyValue, BigInt(buyPrice)); }}>
-            <FormField label="Quantidade de QTS (R$)" value={buyValue} onChange={(e) => setBuyValue(e.target.value)} inputMode="decimal" />
-            <FormField label="Preço em wei por unidade interna" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} inputMode="numeric" />
-            <button type="submit" disabled={loading}>Criar compra</button>
-          </form>
-        </Panel>
-      </div>
+          <button
+            type="submit"
+            disabled={!account || !tokenId || loading || disabled}
+          >
+            Criar listagem
+          </button>
+        </form>
+      </Panel>
 
-      <Panel title="Livro de ordens" description="Últimas dez ordens registradas on-chain.">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Lado</th>
-                <th>Maker</th>
-                <th>Quantidade</th>
-                <th>Restante</th>
-                <th>Preço</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length === 0 ? (
-                <tr><td colSpan={8}>Nenhuma ordem registrada.</td></tr>
-              ) : orders.map((order) => (
-                <tr key={order.id.toString()}>
-                  <td>#{order.id.toString()}</td>
-                  <td>{order.side}</td>
-                  <td><code>{shortAddress(order.maker)}</code></td>
-                  <td>{fromInternalUnits(order.amount)}</td>
-                  <td>{fromInternalUnits(order.remaining)}</td>
-                  <td>{order.pricePerUnitWei.toString()} wei</td>
-                  <td>{order.active ? "Aberta" : "Encerrada"}</td>
-                  <td>
-                    {order.active && (
-                      <button className="button-secondary" onClick={() => setFillOrderId(order.id.toString())}>
-                        Selecionar
+      <Panel
+        title="Precatórios à venda"
+        description="Cada card representa um NFT completo; não existe execução parcial."
+      >
+        {listings.length === 0 ? (
+          <div className="empty-inline">Nenhuma listagem ativa.</div>
+        ) : (
+          <div className="market-grid">
+            {listings.map((listing) => {
+              const asset = assetByTokenId.get(listing.tokenId.toString());
+              const ownListing = sameAddress(account, listing.seller);
+
+              return (
+                <article className="market-card" key={listing.id.toString()}>
+                  <div className="market-visual">
+                    <span>PREC</span>
+                    <strong>#{listing.tokenId.toString()}</strong>
+                  </div>
+
+                  <div className="market-card-body">
+                    <div className="asset-card-top">
+                      <span className="token-badge">
+                        Listing #{listing.id.toString()}
+                      </span>
+                      <span
+                        className={
+                          listing.executable ? "badge active" : "badge unavailable"
+                        }
+                      >
+                        {listing.executable ? "Ativa" : "Indisponível"}
+                      </span>
+                    </div>
+
+                    <h3>
+                      {asset ? fromCents(asset.faceValue) : "Precatório NFT"}
+                    </h3>
+
+                    <dl>
+                      <div>
+                        <dt>Preço</dt>
+                        <dd>{fromWei(listing.price)}</dd>
+                      </div>
+                      <div>
+                        <dt>Vendedor</dt>
+                        <dd>{shortAddress(listing.seller)}</dd>
+                      </div>
+                      {asset && (
+                        <div>
+                          <dt>Identificador</dt>
+                          <dd title={asset.identifier}>
+                            {shortHash(asset.identifier)}
+                          </dd>
+                        </div>
+                      )}
+                      <div>
+                        <dt>Listado em</dt>
+                        <dd>{formatTimestamp(listing.createdAt)}</dd>
+                      </div>
+                    </dl>
+
+                    {!listing.executable && listing.unavailableReason && (
+                      <div className="market-warning">
+                        {listing.unavailableReason}
+                      </div>
+                    )}
+
+                    {ownListing ? (
+                      <button
+                        className="button-danger"
+                        disabled={loading || disabled}
+                        onClick={() => void onCancel(listing.id)}
+                      >
+                        Cancelar listagem
+                      </button>
+                    ) : (
+                      <button
+                        disabled={
+                          !account ||
+                          loading ||
+                          disabled ||
+                          !listing.executable
+                        }
+                        onClick={() => void onBuy(listing)}
+                      >
+                        {listing.executable ? "Comprar NFT" : "Indisponível"}
                       </button>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="market-actions">
-          <FormField label="ID da ordem" value={fillOrderId} onChange={(e) => setFillOrderId(e.target.value)} inputMode="numeric" />
-          <FormField label="Quantidade para executar (R$ em QTS)" value={fillValue} onChange={(e) => setFillValue(e.target.value)} inputMode="decimal" />
-          <button disabled={!selectedOrder || loading} onClick={() => selectedOrder && void onFill(selectedOrder, fillValue)}>
-            Executar parcela
-          </button>
-          <button className="button-danger" disabled={!selectedOrder || loading} onClick={() => selectedOrder && void onCancel(selectedOrder.id)}>
-            Cancelar ordem selecionada
-          </button>
-        </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </Panel>
     </div>
   );

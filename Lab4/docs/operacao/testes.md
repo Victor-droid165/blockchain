@@ -1,6 +1,6 @@
 # Testes automatizados
 
-Os testes da camada blockchain usam **Hardhat 3**, `node:test` e Viem.
+A camada blockchain usa Hardhat 3, `node:test`, Viem e OpenZeppelin Upgrades.
 
 ## Executar
 
@@ -12,59 +12,42 @@ npm install
 npm test
 ```
 
-Ou diretamente no workspace:
+## `PrecatorioNFT.test.ts`
 
-```bash
-npm run chain:test
-```
+Cobre:
 
-## Suítes
-
-### `MonetaryOracle.test.ts`
-
-Valida:
-
-- emissão inicial de QTS;
-- atualização do índice monetário;
-- `previewBalance`;
-- `syncBalance`;
-- atualização de `totalSupply`;
-- restrição de `updateIndex` ao operador autorizado.
-
-### `Compensation.test.ts`
-
-Valida:
-
-- registro de `FiscalDebt`;
-- compensação de QTS;
-- redução de `remainingAmount`;
-- DBT transitório com saldo final zero;
-- atualização de `totalCompensatedByAccount`;
-- atomicidade quando a obrigação restante é insuficiente.
-
-### `Marketplace.test.ts`
-
-Valida:
-
-- criação e execução de ordem de venda;
-- transferência de QTS;
-- encerramento da ordem;
-- `totalTrades` e `lastTradePriceWei`;
-- escrow de ETH de teste em ordem de compra;
-- devolução do escrow no cancelamento.
-
-## Escopo
-
-Esses testes validam regras de contrato em rede simulada. Eles não substituem auditoria de segurança, testes de integração institucional nem validação jurídica do modelo.
-
-### `PrecatorioNFT.test.ts`
-
-Valida a primeira implementação ERC-721 da arquitetura revisada:
-
-- mint institucional com identificador único;
+- mint institucional;
+- identificador único;
 - propriedade ERC-721;
-- restrição de mint ao administrador;
+- bloqueio de mint por conta não autorizada;
+- renúncia de ownership desabilitada;
 - pausa e retomada;
-- upgrade UUPS mantendo endereço e estado;
-- `invalidate()` como operação terminal;
-- bloqueio de `unpause`, aprovações, transferências, mint e upgrades depois da invalidação.
+- bloqueio de transferência durante pausa;
+- upgrade UUPS preservando endereço e estado;
+- invalidação permanente;
+- bloqueio de mint, aprovação, transferência, `unpause` e upgrade após invalidação.
+
+## `PrecatorioMarketplace.test.ts`
+
+Cobre:
+
+- listagem de um NFT completo;
+- exigência de propriedade;
+- exigência de aprovação;
+- rejeição de auto-compra e pagamento incorreto;
+- renúncia de ownership desabilitada;
+- prevenção de duas listagens ativas para o mesmo `tokenId`;
+- compra e transferência do NFT;
+- cancelamento pelo vendedor;
+- pausa e retomada;
+- upgrade UUPS preservando endereço e listagens;
+- invalidação permanente;
+- bloqueio de compra, cancelamento, `unpause` e upgrade após invalidação.
+
+## Comparação de endereços
+
+Viem pode retornar endereços em formato checksum enquanto contas de teste podem aparecer em lowercase. Os testes comparam endereços de forma case-insensitive porque a capitalização não altera o endereço Ethereum.
+
+## Limite dos testes
+
+Os testes exercitam o comportamento da PoC em rede simulada. Eles não substituem auditoria de segurança, revisão jurídica, testes de integração institucional ou testes de carga.
