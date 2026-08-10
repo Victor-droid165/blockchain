@@ -36,7 +36,7 @@ flowchart LR
     API -. transações futuras .-> DBT
 
     O -->|tokeniza precatório| QTS
-    O -->|emite DBT / registra obrigação fiscal| DBT
+    O -->|registra obrigação fiscal| DBT
     OP -->|updateIndex| ORA
     ORA -->|currentIndex| QTS
     C -->|carteira / transação| CMP
@@ -81,7 +81,7 @@ flowchart LR
 
 1. **Privacidade:** a blockchain armazena hashes e valores mínimos, e não documentos nem dados pessoais completos.
 2. **Auditabilidade:** emissões, transferências, queimas e compensações ficam registradas como transações e eventos.
-3. **Atomicidade:** a compensação queima QTS e DBT na mesma transação. Se uma etapa falhar, nenhuma alteração permanece.
+3. **Atomicidade:** a compensação queima QTS, materializa e queima DBT e reduz a obrigação fiscal na mesma transação. Se uma etapa falhar, nenhuma alteração permanece.
 4. **Atualização monetária:** `MonetaryOracle` publica um índice cumulativo e `QuitusToken` o utiliza para materializar correções de forma lazy.
 5. **Integração institucional:** backend, autenticação e integrações reais com TJPB/Fazenda ainda são componentes planejados.
 6. **Evolução:** marketplace, indexador e aplicação web continuam planejados e só devem ser considerados implementados quando existirem no código.
@@ -90,6 +90,6 @@ flowchart LR
 
 Já existem on-chain `MonetaryOracle`, `QuitusToken`, `DebitusToken` e `CompensationManager`.
 
-`DebitusToken` já registra uma `FiscalDebt`, mas a função atual `CompensationManager.compensate(referenceId, amount)` **ainda não consome esse registro**: ela continua exigindo que o solicitante possua previamente o mesmo valor em QTS e DBT.
+`CompensationManager.compensate(referenceId, fiscalDebtIdHash, amount)` já consome `FiscalDebt.remainingAmount`. O solicitante não mantém DBT previamente: `DebitusToken` emite e queima o DBT correspondente dentro da própria compensação.
 
 Marketplace, indexador, backend e aplicação web ainda não estão implementados.

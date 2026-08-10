@@ -1,10 +1,10 @@
 # Fluxo de compensação
 
-Este diagrama representa a **compensação atualmente implementada**. Embora `DebitusToken` já possua `registerFiscalDebt`, o `CompensationManager` ainda não utiliza `FiscalDebt` nesta operação.
+Este diagrama representa a compensação atualmente implementada.
 
 ```mermaid
 sequenceDiagram
-    actor Titular
+    actor Devedor
     participant Interface
     participant Manager as CompensationManager
     participant QTS as QuitusToken
@@ -12,49 +12,56 @@ sequenceDiagram
     participant DBT as DebitusToken
     participant Blockchain
 
-    Titular->>Interface: Solicita compensação de R$ 250,00
-    Interface->>Manager: compensate(referencia, 25000)
+    Devedor->>Interface: Solicita compensação
+    Interface->>Manager: compensate(referencia, fiscalDebtIdHash, valor)
 
-    Manager->>QTS: syncBalance(titular)
+    Manager->>QTS: syncBalance(devedor)
     QTS->>Oracle: currentIndex()
     Oracle-->>QTS: índice atual
     QTS-->>Manager: saldo QTS sincronizado
 
-    Manager->>QTS: balanceOf(titular)
+    Manager->>QTS: balanceOf(devedor)
     QTS-->>Manager: saldo QTS
-    Manager->>DBT: balanceOf(titular)
-    DBT-->>Manager: saldo DBT
 
-    Manager->>QTS: burnForCompensation(titular, 25000)
+    Manager->>QTS: burnForCompensation(devedor, valor)
     QTS-->>Manager: QTS queimado
 
-    Manager->>DBT: burnForCompensation(titular, 25000)
-    DBT-->>Manager: DBT queimado
+    Manager->>DBT: settleFiscalDebtForCompensation(fiscalDebtIdHash, devedor, valor)
+    DBT->>DBT: Valida obrigação, devedor e remainingAmount
+    DBT->>DBT: Emite DBT da parcela
+    DBT->>DBT: Queima o mesmo DBT
+    DBT->>DBT: Reduz remainingAmount
+    DBT->>Blockchain: FiscalDebtCompensated
 
     Manager->>Blockchain: CompensationExecuted
     Manager-->>Interface: Compensação concluída
-    Interface-->>Titular: Exibe novos saldos
+    Interface-->>Devedor: Exibe novos saldos
 ```
+
+## DBT transitório
+
+O devedor não precisa possuir DBT antes da operação.
+
+Para uma compensação de `25000` unidades:
+
+```text
+saldo DBT antes:  0
+mint durante:     25000
+burn durante:     25000
+saldo DBT depois: 0
+```
+
+Os eventos `Transfer` registram a emissão e a queima, enquanto `FiscalDebtCompensated` registra a redução da obrigação fiscal.
 
 ## Atomicidade
 
-As duas chamadas `burnForCompensation` são executadas dentro da mesma transação de `CompensationManager.compensate`.
+Todas as operações são executadas dentro da mesma transação iniciada por `CompensationManager.compensate`.
 
-Se a segunda queima ou qualquer outra etapa reverter, a EVM também desfaz:
+Por exemplo, o manager queima QTS antes de chamar `settleFiscalDebtForCompensation`. Se `DebitusToken` detectar que `remainingAmount` é insuficiente e reverter, a EVM também desfaz:
 
-- a primeira queima;
+- a queima de QTS;
 - a marcação de `compensationReferencesUsed`;
-- a atualização de `totalCompensatedByAccount`;
-- qualquer sincronização de QTS realizada dentro da mesma transação.
+- a sincronização monetária de QTS feita na transação;
+- qualquer outra alteração anterior daquela compensação.
 
-## Limitação atual
-
-O registro criado por:
-
-```solidity
-registerFiscalDebt(bytes32 fiscalDebtIdHash, address debtor, uint256 amount)
-```
-
-ainda não participa da compensação. A função atual exige um saldo DBT previamente emitido por `issueFiscalCredit`.
-
-A integração de `FiscalDebt.remainingAmount` e a emissão transitória de DBT serão alterações posteriores.
+Assim, não existe estado persistido com apenas uma parte da compensação executada.

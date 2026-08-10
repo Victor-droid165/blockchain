@@ -5,7 +5,7 @@ import {ControlledToken} from "./ControlledToken.sol";
 
 /**
  * @title DebitusToken
- * @notice Token DBT emitido a partir de um crédito fiscal validado pela instituição emissora.
+ * @notice Registra obrigações fiscais e materializa DBT durante a compensação.
  */
 contract DebitusToken is ControlledToken {
     struct FiscalDebt {
@@ -16,15 +16,7 @@ contract DebitusToken is ControlledToken {
         bool active;
     }
 
-    struct FiscalCredit {
-        address holder;
-        uint256 faceValue;
-        uint256 issuedAt;
-        bool issued;
-    }
-
     mapping(bytes32 => FiscalDebt) public fiscalDebts;
-    mapping(bytes32 => FiscalCredit) public fiscalCredits;
 
     event FiscalDebtRegistered(
         bytes32 indexed fiscalDebtIdHash,
@@ -33,23 +25,27 @@ contract DebitusToken is ControlledToken {
         uint256 registeredAt
     );
 
-    event FiscalCreditIssued(
-        bytes32 indexed fiscalCreditIdHash,
-        address indexed holder,
+    event FiscalDebtCompensated(
+        bytes32 indexed fiscalDebtIdHash,
+        address indexed debtor,
         uint256 amount,
-        uint256 issuedAt
+        uint256 remainingAmount,
+        uint256 compensatedAt
     );
 
     error FiscalDebtAlreadyRegistered();
-    error FiscalCreditAlreadyIssued();
+    error FiscalDebtNotFound();
+    error FiscalDebtInactive();
+    error UnauthorizedDebtor();
+    error InsufficientFiscalDebtBalance();
     error InvalidIdentifier();
 
     constructor(address tokenIssuer) ControlledToken("Debitus", "DBT", tokenIssuer) {}
 
     /**
      * @notice Registra uma obrigação fiscal elegível para compensação.
-     * @dev Nesta etapa, o registro não emite DBT. A emissão transitória de DBT
-     *      será integrada ao fluxo de compensação em alteração posterior.
+     * @dev O registro não emite DBT. O DBT é materializado somente quando
+     *      uma parcela desta obrigação é compensada.
      * @param fiscalDebtIdHash Hash do identificador institucional da obrigação fiscal.
      * @param debtor Endereço do devedor associado à obrigação.
      * @param amount Valor em centavos. Ex.: 40000 = R$ 400,00.
@@ -83,33 +79,47 @@ contract DebitusToken is ControlledToken {
     }
 
     /**
-     * @notice Registra o hash de um crédito fiscal e emite DBT ao titular.
-     * @param fiscalCreditIdHash Hash do identificador institucional do crédito fiscal.
-     * @param holder Endereço que receberá os DBT.
-     * @param amount Valor em centavos. Ex.: 40000 = R$ 400,00.
+     * @notice Liquida uma parcela da obrigação fiscal durante a compensação.
+     * @dev Somente o CompensationManager autorizado pode chamar esta função.
+     *      O DBT é emitido e queimado na mesma transação, enquanto o saldo
+     *      remanescente da obrigação é reduzido.
+     * @param fiscalDebtIdHash Hash da obrigação fiscal registrada.
+     * @param debtor Endereço do devedor que está solicitando a compensação.
+     * @param amount Valor em centavos a ser compensado.
      */
-    function issueFiscalCredit(
-        bytes32 fiscalCreditIdHash,
-        address holder,
+    function settleFiscalDebtForCompensation(
+        bytes32 fiscalDebtIdHash,
+        address debtor,
         uint256 amount
-    ) external onlyIssuer {
-        if (fiscalCreditIdHash == bytes32(0)) revert InvalidIdentifier();
-        if (fiscalCredits[fiscalCreditIdHash].issued) revert FiscalCreditAlreadyIssued();
+    ) external onlyCompensationManager {
+        if (fiscalDebtIdHash == bytes32(0)) revert InvalidIdentifier();
+        if (debtor == address(0)) revert InvalidAddress();
+        if (amount == 0) revert InvalidAmount();
 
-        fiscalCredits[fiscalCreditIdHash] = FiscalCredit({
-            holder: holder,
-            faceValue: amount,
-            issuedAt: block.timestamp,
-            issued: true
-        });
+        FiscalDebt storage fiscalDebt = fiscalDebts[fiscalDebtIdHash];
 
-        _mint(holder, amount);
+        if (fiscalDebt.originalAmount == 0) revert FiscalDebtNotFound();
+        if (!fiscalDebt.active) revert FiscalDebtInactive();
+        if (fiscalDebt.debtor != debtor) revert UnauthorizedDebtor();
+        if (fiscalDebt.remainingAmount < amount) {
+            revert InsufficientFiscalDebtBalance();
+        }
 
-        emit FiscalCreditIssued(
-            fiscalCreditIdHash,
-            holder,
+        _mint(debtor, amount);
+        _burn(debtor, amount);
+
+        fiscalDebt.remainingAmount -= amount;
+        if (fiscalDebt.remainingAmount == 0) {
+            fiscalDebt.active = false;
+        }
+
+        emit FiscalDebtCompensated(
+            fiscalDebtIdHash,
+            debtor,
             amount,
+            fiscalDebt.remainingAmount,
             block.timestamp
         );
     }
+
 }

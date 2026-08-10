@@ -33,14 +33,15 @@ classDiagram
     }
 
     class DebitusToken {
-        +fiscalCredits
-        +issueFiscalCredit(idHash, holder, amount)
+        +fiscalDebts
+        +registerFiscalDebt(idHash, debtor, amount)
+        +settleFiscalDebtForCompensation(idHash, debtor, amount)
     }
 
     class CompensationManager {
         +compensationReferencesUsed
         +totalCompensatedByAccount
-        +compensate(referenceId, amount)
+        +compensate(referenceId, fiscalDebtIdHash, amount)
     }
 
     ControlledToken <|-- QuitusToken
@@ -74,30 +75,33 @@ tokenizePrecatorio(
 
 Somente o `issuer` pode executá-la. O mesmo `precatorioIdHash` não pode ser tokenizado novamente.
 
-### DBT no código atual
+### DBT e obrigação fiscal no código atual
 
 `DebitusToken` registra:
 
 ```solidity
-struct FiscalCredit {
-    address holder;
-    uint256 faceValue;
-    uint256 issuedAt;
-    bool issued;
+struct FiscalDebt {
+    address debtor;
+    uint256 originalAmount;
+    uint256 remainingAmount;
+    uint256 registeredAt;
+    bool active;
 }
 ```
 
-A operação atual é:
+A instituição registra a obrigação por `registerFiscalDebt(...)`, sem emitir DBT antecipadamente.
+
+O DBT é materializado somente quando `CompensationManager` chama:
 
 ```solidity
-issueFiscalCredit(
-    bytes32 fiscalCreditIdHash,
-    address holder,
+settleFiscalDebtForCompensation(
+    bytes32 fiscalDebtIdHash,
+    address debtor,
     uint256 amount
 )
 ```
 
-Ela emite DBT antecipadamente para o titular.
+Essa operação emite e queima o mesmo valor de DBT e reduz `remainingAmount`.
 
 ### Compensação no código atual
 
@@ -106,21 +110,12 @@ A função existente é:
 ```solidity
 compensate(
     bytes32 referenceId,
+    bytes32 fiscalDebtIdHash,
     uint256 amount
 )
 ```
 
-Ela exige que `msg.sender` possua, antes da chamada, pelo menos `amount` em QTS e em DBT.
-
-Depois:
-
-```text
-CompensationManager
-    ├── burnForCompensation(QTS)
-    └── burnForCompensation(DBT)
-```
-
-As duas chamadas pertencem à mesma transação. Se uma delas falhar, toda a operação é revertida.
+O solicitante precisa possuir QTS suficiente e ser o devedor associado à obrigação fiscal. A queima de QTS, a emissão/queima de DBT e a redução de `remainingAmount` pertencem à mesma transação. Se qualquer etapa falhar, toda a operação é revertida.
 
 ---
 
@@ -296,9 +291,9 @@ registerFiscalDebt(
 )
 ```
 
-O registro não emite DBT. Ele apenas associa o identificador da obrigação ao devedor e mantém `originalAmount` e `remainingAmount`.
+O registro não emite DBT. Ele associa o identificador da obrigação ao devedor e mantém `originalAmount` e `remainingAmount`.
 
-A função anterior `issueFiscalCredit(...)` ainda permanece temporariamente no contrato e a compensação continua usando o saldo DBT previamente emitido. Essa compatibilidade será removida quando o DBT for integrado ao registro fiscal e à compensação atômica.
+O DBT é transitório: durante a compensação, `settleFiscalDebtForCompensation` materializa o valor da parcela em DBT, que é queimado na mesma transação, e reduz `remainingAmount`. Quando o saldo remanescente chega a zero, a obrigação é marcada como inativa.
 
 ### Terminologia
 
@@ -308,11 +303,11 @@ A implementação deve evitar atribuir uma interpretação jurídica mais espec�
 
 ---
 
-## Compensação pretendida
+## Compensação implementada
 
-No protótipo final, o devedor não deverá precisar manter um saldo DBT antecipadamente apenas para executar a compensação.
+O devedor não precisa manter um saldo DBT antecipadamente para executar a compensação.
 
-O fluxo pretendido é:
+O fluxo implementado é:
 
 ```text
 devedor possui QTS
@@ -330,19 +325,17 @@ saldo remanescente da obrigação é reduzido
 
 Tudo deve ocorrer na mesma transação EVM.
 
-Uma possível interface é:
+A interface implementada é:
 
 ```solidity
 compensate(
     bytes32 referenceId,
-    bytes32 fiscalDebtId,
+    bytes32 fiscalDebtIdHash,
     uint256 amount
 )
 ```
 
-A assinatura final será definida pela implementação.
-
-### Regras esperadas
+### Regras aplicadas
 
 - referência válida e ainda não utilizada;
 - valor maior que zero;

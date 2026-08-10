@@ -60,9 +60,8 @@ classDiagram
 
     class DebitusToken {
         +mapping fiscalDebts
-        +mapping fiscalCredits
         +registerFiscalDebt(idHash, debtor, amount)
-        +issueFiscalCredit(idHash, holder, amount)
+        +settleFiscalDebtForCompensation(idHash, debtor, amount)
     }
 
     class FiscalDebt {
@@ -73,19 +72,12 @@ classDiagram
         +bool active
     }
 
-    class FiscalCredit {
-        +address holder
-        +uint256 faceValue
-        +uint256 issuedAt
-        +bool issued
-    }
-
     class CompensationManager {
         +IQuitusCompensableToken quitusToken
-        +ICompensableToken debitusToken
+        +IDebitusCompensableToken debitusToken
         +mapping compensationReferencesUsed
         +mapping totalCompensatedByAccount
-        +compensate(referenceId, amount)
+        +compensate(referenceId, fiscalDebtIdHash, amount)
     }
 
     class ICompensableToken {
@@ -99,6 +91,11 @@ classDiagram
         +syncBalance(account) uint256
     }
 
+    class IDebitusCompensableToken {
+        <<interface>>
+        +settleFiscalDebtForCompensation(idHash, debtor, amount)
+    }
+
     ControlledToken <|-- QuitusToken
     ControlledToken <|-- DebitusToken
 
@@ -107,11 +104,10 @@ classDiagram
 
     QuitusToken "1" --> "*" Precatorio
     DebitusToken "1" --> "*" FiscalDebt
-    DebitusToken "1" --> "*" FiscalCredit
 
     ICompensableToken <|-- IQuitusCompensableToken
     CompensationManager --> IQuitusCompensableToken : QTS
-    CompensationManager --> ICompensableToken : DBT
+    CompensationManager --> IDebitusCompensableToken : obrigação fiscal / DBT
 ```
 
 ## Responsabilidades
@@ -145,12 +141,18 @@ Além da tokenização, consulta `MonetaryOracle.currentIndex()` e mantém `last
 
 ### `DebitusToken`
 
-Atualmente mantém **dois modelos em paralelo durante a evolução da Entrega 2**:
+Mantém `FiscalDebt`, registrado por `registerFiscalDebt`, com `originalAmount`, `remainingAmount`, devedor e estado ativo. O registro inicial não emite DBT.
 
-1. `FiscalDebt`, registrado por `registerFiscalDebt`, com `originalAmount`, `remainingAmount`, devedor e estado ativo. Essa operação não emite DBT;
-2. `FiscalCredit`, registrado por `issueFiscalCredit`, que continua emitindo DBT antecipadamente ao titular para manter compatibilidade com a compensação atual.
+Durante a compensação, `settleFiscalDebtForCompensation`:
 
-O registro `FiscalDebt` ainda não é consumido pelo `CompensationManager`.
+1. valida a obrigação, o devedor e o saldo remanescente;
+2. emite DBT no mesmo valor da parcela;
+3. queima imediatamente esse DBT;
+4. reduz `remainingAmount`;
+5. marca a obrigação como inativa quando o saldo chega a zero;
+6. emite `FiscalDebtCompensated`.
+
+A função só pode ser chamada pelo `CompensationManager` autorizado.
 
 ### `CompensationManager`
 
@@ -159,20 +161,25 @@ Coordena a compensação atualmente implementada.
 A função é:
 
 ```solidity
-compensate(bytes32 referenceId, uint256 amount)
+compensate(
+    bytes32 referenceId,
+    bytes32 fiscalDebtIdHash,
+    uint256 amount
+)
 ```
 
 Ela:
 
-1. valida referência e valor;
+1. valida os identificadores, o valor e a referência única;
 2. chama `QuitusToken.syncBalance(msg.sender)`;
-3. exige que o solicitante possua pelo menos `amount` em QTS **e** DBT;
+3. exige saldo QTS suficiente;
 4. marca a referência como usada;
-5. chama `burnForCompensation` nos dois tokens;
-6. incrementa `totalCompensatedByAccount`;
-7. emite `CompensationExecuted`.
+5. queima QTS;
+6. solicita a `DebitusToken` a liquidação da `FiscalDebt`, com emissão e queima transitória de DBT;
+7. incrementa `totalCompensatedByAccount`;
+8. emite `CompensationExecuted` com a referência e a obrigação fiscal.
 
-As duas queimas pertencem à mesma transação EVM. Se uma etapa reverter, todo o estado da operação é revertido.
+Todas as etapas pertencem à mesma transação EVM. Se a obrigação fiscal for inválida, pertencer a outro devedor ou não tiver saldo suficiente, a chamada em `DebitusToken` reverte e a queima anterior de QTS também é desfeita.
 
 ## Estado de evolução
 
@@ -181,13 +188,12 @@ Já implementado:
 - tokenização e emissão de QTS;
 - atualização monetária por `MonetaryOracle`;
 - registro explícito de `FiscalDebt`;
-- emissão legada de DBT por `issueFiscalCredit`;
-- compensação atômica baseada em saldos QTS + DBT.
+- consumo de `FiscalDebt.remainingAmount` pela compensação;
+- emissão e queima transitória de DBT;
+- compensação atômica entre QTS e a obrigação fiscal.
 
 Ainda não implementado:
 
-- consumo de `FiscalDebt.remainingAmount` pela compensação;
-- emissão transitória de DBT durante a compensação;
 - mercado secundário;
 - frontend;
 - testes automatizados e scripts de deploy.

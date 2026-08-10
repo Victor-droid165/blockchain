@@ -2,9 +2,9 @@
 
 ## Cenário atual
 
-Um titular recebe QTS referentes a um precatório de **R$ 1.000,00**, o índice monetário da PoC é atualizado em **1%**, uma obrigação fiscal de **R$ 400,00** é registrada e, para manter compatibilidade com a compensação atualmente implementada, também são emitidos **R$ 400,00 em DBT** para a mesma conta.
+Um titular recebe QTS referentes a um precatório de **R$ 1.000,00**, o índice monetário da PoC é atualizado em **1%** e uma obrigação fiscal de **R$ 400,00** é registrada para a mesma conta.
 
-Depois, o titular realiza uma compensação de **R$ 250,00**.
+Depois, o titular realiza uma compensação de **R$ 250,00** usando seus QTS.
 
 Os contratos usam unidades com duas casas decimais:
 
@@ -13,7 +13,7 @@ Os contratos usam unidades com duas casas decimais:
 - R$ 400,00 → `40000`;
 - R$ 250,00 → `25000`.
 
-> `FiscalDebt` já existe no código, mas ainda não é consumido por `CompensationManager`. A emissão por `issueFiscalCredit` continua necessária no fluxo atual.
+O DBT não precisa ser emitido antecipadamente. Durante a compensação, `DebitusToken` emite e queima `25000` DBT na mesma transação.
 
 ## Preparação no Remix
 
@@ -26,7 +26,7 @@ Os contratos usam unidades com duas casas decimais:
 ## Deploy
 
 1. Implantar `MonetaryOracle`, passando o endereço da primeira conta como `oracleOperator`;
-2. Implantar `QuitusToken`, passando o endereço da primeira conta como `tokenIssuer` e o endereço do `MonetaryOracle`;
+2. Implantar `QuitusToken`, passando a primeira conta como `tokenIssuer` e o endereço do `MonetaryOracle`;
 3. Implantar `DebitusToken`, passando a primeira conta como `tokenIssuer`;
 4. Implantar `CompensationManager`, passando os endereços de QTS e DBT;
 5. Nos dois tokens, chamar `setCompensationManager` com o endereço do gerenciador.
@@ -37,12 +37,6 @@ Identificador do precatório:
 
 ```text
 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-```
-
-Identificador do crédito fiscal:
-
-```text
-0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ```
 
 Identificador da obrigação fiscal:
@@ -73,7 +67,6 @@ tokenizePrecatorio(
 
 Mostrar:
 
-- transação confirmada;
 - evento `PrecatorioTokenized`;
 - `balanceOf(SEGUNDA_CONTA) = 100000`;
 - registro em `precatorios(idHash)`;
@@ -133,35 +126,17 @@ Mostrar:
 - evento `FiscalDebtRegistered`;
 - `originalAmount = 40000`;
 - `remainingAmount = 40000`;
-- `active = true`.
+- `active = true`;
+- `balanceOf(SEGUNDA_CONTA) = 0` em DBT antes da compensação.
 
-Esse registro ainda não é alterado pela compensação atual.
-
-### 4. Emitir o DBT usado pela compensação atual
-
-Na conta emissora, chamar em `DebitusToken`:
-
-```text
-issueFiscalCredit(
-  0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
-  ENDERECO_DA_SEGUNDA_CONTA,
-  40000
-)
-```
-
-Mostrar:
-
-- evento `FiscalCreditIssued`;
-- `balanceOf(SEGUNDA_CONTA) = 40000`;
-- registro em `fiscalCredits(idHash)`.
-
-### 5. Executar a compensação
+### 4. Executar a compensação
 
 Trocar para a segunda conta e chamar em `CompensationManager`:
 
 ```text
 compensate(
   0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc,
+  0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd,
   25000
 )
 ```
@@ -169,20 +144,33 @@ compensate(
 Mostrar o estado final:
 
 - saldo QTS: `76000`, equivalente a R$ 760,00;
-- saldo DBT: `15000`, equivalente a R$ 150,00;
+- saldo DBT: `0`;
+- `fiscalDebts(idHash).remainingAmount = 15000`;
+- `fiscalDebts(idHash).active = true`;
 - `totalCompensatedByAccount(SEGUNDA_CONTA) = 25000`;
 - `compensationReferencesUsed(referenceId) = true`;
-- evento `CompensationExecuted`;
-- `fiscalDebts(idHash).remainingAmount` continua `40000`, pois essa integração ainda não foi implementada.
+- eventos `Transfer` de mint/burn de DBT;
+- evento `FiscalDebtCompensated`;
+- evento `CompensationExecuted`.
 
 ## Demonstração da atomicidade
 
-Tentar compensar `20000` com outra referência. O saldo DBT disponível será apenas `15000`, então a operação deverá falhar.
+Tentar compensar `20000` usando a mesma obrigação fiscal, mas com uma nova referência.
+
+Nesse momento:
+
+```text
+QTS disponível = 76000
+obrigação fiscal restante = 15000
+```
+
+O manager consegue iniciar a operação e queimar QTS, mas `DebitusToken` rejeita a parcela porque `20000 > 15000`. O revert desfaz toda a transação.
 
 Após a falha, mostrar que:
 
 - saldo QTS continua `76000`;
-- saldo DBT continua `15000`;
+- `remainingAmount` continua `15000`;
+- `totalCompensatedByAccount` continua `25000`;
 - a nova referência não ficou marcada como utilizada.
 
-Isso evidencia a atomicidade: as duas queimas estão na mesma transação EVM; se uma etapa falha, nenhuma alteração parcial permanece.
+Esse cenário evidencia a atomicidade: uma falha no processamento da obrigação fiscal também reverte a queima de QTS executada anteriormente na mesma transação.

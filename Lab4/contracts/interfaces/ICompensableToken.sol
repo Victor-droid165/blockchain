@@ -9,3 +9,12 @@ interface ICompensableToken {
 interface IQuitusCompensableToken is ICompensableToken {
     function syncBalance(address account) external returns (uint256);
 }
+
+interface IDebitusCompensableToken {
+    function settleFiscalDebtForCompensation(
+        bytes32 fiscalDebtIdHash,
+        address debtor,
+        uint256 amount
+    ) external;
+}
+

@@ -80,9 +80,19 @@ Transferências, novos mints e queimas sincronizam automaticamente as contas env
 registerFiscalDebt(bytes32 fiscalDebtIdHash, address debtor, uint256 amount)
 ```
 
-O registro mantém o valor original, o saldo remanescente, o devedor e o estado da obrigação. Nesta etapa, `registerFiscalDebt` **não emite DBT**.
+O registro mantém o valor original, o saldo remanescente, o devedor e o estado da obrigação. `registerFiscalDebt` não emite DBT.
 
-A função antiga `issueFiscalCredit(...)` e o fluxo atual de compensação ainda foram preservados temporariamente para que esta alteração fique isolada. A adequação do DBT ao novo registro fiscal será feita no próximo passo.
+#### Compensação integrada à obrigação fiscal
+
+A função `CompensationManager.compensate` agora recebe também o hash da obrigação fiscal:
+
+```solidity
+compensate(bytes32 referenceId, bytes32 fiscalDebtIdHash, uint256 amount)
+```
+
+O solicitante precisa possuir QTS suficiente e ser o devedor associado à `FiscalDebt`. Durante a mesma transação, QTS é queimado e `DebitusToken` materializa o mesmo valor em DBT, que é imediatamente queimado, reduzindo `remainingAmount`.
+
+A emissão antecipada por `issueFiscalCredit(...)` foi removida: o usuário não precisa manter saldo DBT antes da compensação.
 
 ### Exemplo
 
@@ -127,8 +137,6 @@ R$ 1.000,00 → R$ 1.010,00
 
 ### Ainda não implementado
 
-- adequação do DBT ao registro da obrigação fiscal;
-- compensação definitiva usando a obrigação fiscal registrada;
 - mercado secundário;
 - frontend/dashboard;
 - testes automatizados;
@@ -210,7 +218,8 @@ O evento `MonetaryAdjustmentApplied` deve registrar a correção aplicada.
 - o índice é cumulativo;
 - a atualização de QTS é lazy para evitar iterar por todos os titulares;
 - a correção monetária é materializada como mint adicional de QTS;
-- a compensação continua atômica no protótipo atual.
+- a compensação consome `FiscalDebt.remainingAmount` e materializa/queima DBT na mesma transação;
+- a compensação permanece atômica: falhas no processamento fiscal revertem também a queima de QTS.
 
 ## Limites atuais
 
