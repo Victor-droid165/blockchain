@@ -1,4 +1,6 @@
-# Lab 4 — Projeto 4: Tokenização de Precatórios e Créditos Fiscais
+# Lab 4 — Projeto 4: Quitus & Debitus
+
+Prova de conceito para **tokenização de precatórios (QTS)**, **registro de obrigações fiscais (DBT)**, **compensação atômica** e **mercado secundário**.
 
 ## Equipe
 
@@ -7,285 +9,129 @@
 - Nívea Calébia Felix dos Santos
 - Victor Emanuel Barbosa Rodrigues
 
-## Problema
-
-O projeto propõe representar precatórios por meio do token **Quitus (QTS)** e créditos fiscais por meio do token **Debitus (DBT)**, permitindo uma compensação indivisível entre as duas obrigações.
-
-A proposta completa também prevê atualização monetária por oráculo, mercado secundário e uma interface para acompanhamento das operações.
-
-## Entrega 1
-
-A Entrega 1 estabeleceu a arquitetura preliminar e os primeiros contratos funcionais.
-
-| Item | Arquivo |
-|---|---|
-| Diagrama de arquitetura | [`docs/arquitetura.md`](./docs/arquitetura.md) |
-| Diagrama de classes | [`docs/contratos.md`](./docs/contratos.md) |
-| Contratos iniciais | [`contracts/`](./contracts/) |
-| Fluxo de tokenização | [`docs/fluxo-tokenizacao.md`](./docs/fluxo-tokenizacao.md) |
-| Fluxo de compensação | [`docs/fluxo-compensacao.md`](./docs/fluxo-compensacao.md) |
-| Roteiro da demonstração inicial | [`docs/roteiro-demo.md`](./docs/roteiro-demo.md) |
-
-O protótipo inicial contém `ControlledToken`, `QuitusToken`, `DebitusToken` e `CompensationManager`.
-
-## Entrega 2 — em desenvolvimento
-
-A Entrega 2 evolui o protótipo com integrações, testes e interface.
-
-O modelo funcional usado como referência está em [`docs/modelo-solucao.md`](./docs/modelo-solucao.md).
-
-### Funcionalidades já adicionadas
-
-#### Oráculo monetário simulado
-
-[`contracts/MonetaryOracle.sol`](./contracts/MonetaryOracle.sol) mantém um índice monetário cumulativo controlado por um endereço `operator`.
-
-A escala usada é:
+## Estrutura do projeto
 
 ```text
-1_000_000 = 1,000000
-1_010_000 = 1,010000 = +1%
+Lab4/
+├── blockchain/              # Solidity + Hardhat + testes + deploy
+│   ├── contracts/
+│   ├── scripts/
+│   ├── test/
+│   ├── hardhat.config.ts
+│   └── package.json
+├── frontend/                # React + Vite + TypeScript + Viem
+│   ├── public/
+│   ├── src/
+│   └── package.json
+├── docs/                    # documentação do sistema e da demonstração
+├── package.json             # workspaces e comandos do projeto
+└── .nvmrc                   # Node 22
 ```
 
-Somente o operador pode publicar um novo índice por meio de:
+> A PoC **não possui um backend HTTP/API próprio**. O frontend conversa diretamente com a blockchain local por JSON-RPC e assina transações pela carteira. A pasta `blockchain/` concentra o que antes estava espalhado na raiz do Lab4.
 
-```solidity
-updateIndex(uint256 newIndex)
-```
+## Estado das entregas
 
-#### Integração do QTS com o oráculo
+### Entrega 1
 
-`QuitusToken` agora recebe o endereço do `MonetaryOracle` no construtor e mantém, para cada conta, o último índice aplicado.
+A Entrega 1 estabeleceu a arquitetura e os contratos iniciais. Os diagramas foram mantidos e evoluídos para refletir o código atual em [`docs/arquitetura/`](./docs/arquitetura/).
 
-A atualização é **lazy**: o contrato não percorre todos os titulares quando o índice muda. Em vez disso, a atualização é materializada quando a conta é sincronizada ou antes de operações que alteram seu saldo.
+### Entrega 2 — em desenvolvimento
 
-Funções adicionadas:
+Já estão implementados:
 
-```solidity
-syncBalance(address account)
-previewBalance(address account)
-```
+- tokenização de precatórios e emissão de QTS;
+- atualização monetária com `MonetaryOracle`;
+- registro de obrigação fiscal;
+- compensação atômica com DBT transitório;
+- mercado secundário de QTS;
+- testes automatizados com Hardhat;
+- script de deploy local;
+- frontend React para operar e demonstrar a PoC.
 
-`syncBalance` materializa a correção no estado, aumentando o saldo QTS e `totalSupply`. `previewBalance` permite visualizar o saldo corrigido sem alterar o estado.
+Ainda falta consolidar a execução integrada, revisar a experiência da demonstração e definir se haverá deploy em rede pública/testnet.
 
-Transferências, novos mints e queimas sincronizam automaticamente as contas envolvidas antes de alterar os saldos.
+### Entrega 3
 
-`CompensationManager` também sincroniza o saldo QTS do solicitante antes de validar a compensação.
+A Entrega 3 será a consolidação final: documentação revisada, demonstração, vídeo, repositório final e tag da entrega.
 
-#### Registro da obrigação fiscal
+## Requisitos
 
-`DebitusToken` agora permite que a instituição emissora registre explicitamente uma obrigação fiscal elegível por:
+- Node.js `>=22.13.0`;
+- npm;
+- MetaMask ou outra carteira injetada para usar a interface;
+- dois terminais para manter a rede local e a interface em execução.
 
-```solidity
-registerFiscalDebt(bytes32 fiscalDebtIdHash, address debtor, uint256 amount)
-```
-
-O registro mantém o valor original, o saldo remanescente, o devedor e o estado da obrigação. `registerFiscalDebt` não emite DBT.
-
-#### Compensação integrada à obrigação fiscal
-
-A função `CompensationManager.compensate` agora recebe também o hash da obrigação fiscal:
-
-```solidity
-compensate(bytes32 referenceId, bytes32 fiscalDebtIdHash, uint256 amount)
-```
-
-O solicitante precisa possuir QTS suficiente e ser o devedor associado à `FiscalDebt`. Durante a mesma transação, QTS é queimado e `DebitusToken` materializa o mesmo valor em DBT, que é imediatamente queimado, reduzindo `remainingAmount`.
-
-A emissão antecipada por `issueFiscalCredit(...)` foi removida: o usuário não precisa manter saldo DBT antes da compensação.
-
-#### Mercado secundário de QTS
-
-[`contracts/QuitusMarketplace.sol`](./contracts/QuitusMarketplace.sol) implementa um livro de ordens simplificado com:
-
-- ofertas de venda (`Sell`);
-- ofertas de compra (`Buy`);
-- execução parcial ou total;
-- cancelamento;
-- histórico de negociações por eventos `OrderFilled`.
-
-As ordens de compra mantêm ETH de teste em escrow. Nas ordens de venda, os QTS permanecem com o vendedor até a execução; por isso, o vendedor precisa aprovar o marketplace com `approve(...)` e manter saldo/allowance suficientes.
-
-O preço é expresso em **wei por unidade interna de QTS**. Como QTS possui duas casas decimais, uma unidade interna representa `0,01 QTS`.
-
-O uso de ETH é apenas um mock técnico da liquidação financeira da PoC e não representa a forma de pagamento de uma implantação institucional.
-
-### Exemplo
-
-Estado inicial:
-
-```text
-saldo QTS = 100000
-índice aplicado = 1000000
-```
-
-Após o operador executar:
-
-```text
-updateIndex(1010000)
-```
-
-a consulta:
-
-```text
-previewBalance(conta)
-```
-
-deve indicar:
-
-```text
-101000
-```
-
-Depois de:
-
-```text
-syncBalance(conta)
-```
-
-o saldo persistido passa a `101000`.
-
-Na convenção do projeto:
-
-```text
-R$ 1.000,00 → R$ 1.010,00
-```
-
-#### Testes automatizados
-
-A PoC possui testes em [`test/`](./test/) para:
-
-- atualização monetária QTS + oráculo;
-- compensação e atomicidade;
-- mercado secundário.
-
-A descrição dos cenários está em [`docs/testes.md`](./docs/testes.md).
-
-Para executar a partir de `Lab4/`:
+Com `nvm`:
 
 ```bash
+nvm install
 nvm use
 npm install
+```
+
+O `npm install` na raiz instala os dois workspaces: `blockchain` e `frontend`.
+
+## Validar o projeto
+
+```bash
 npm run build
 npm test
 ```
 
-#### Deploy
+O build compila primeiro os contratos e depois o frontend. Os testes automatizados ficam em [`blockchain/test/`](./blockchain/test/).
 
-O script [`scripts/deploy.ts`](./scripts/deploy.ts) implanta e configura todos os contratos atuais da PoC.
+## Executar a PoC local
 
-Execução efêmera:
-
-```bash
-npm run deploy
-```
-
-Para manter uma rede local disponível para outras aplicações:
+### Terminal 1 — blockchain local
 
 ```bash
-npm run node
+npm run chain:node
 ```
 
-e, em outro terminal:
+### Terminal 2 — deploy
 
 ```bash
-npm run deploy:localhost
+npm run chain:deploy:localhost
 ```
 
-Mais detalhes em [`docs/deploy.md`](./docs/deploy.md).
-
-### Ainda não implementado
-
-- frontend/dashboard;
-- deploy/configuração em uma rede pública ou institucional.
-
-## Entrega 3
-
-Na Entrega 3, a versão final da prova de conceito consolidará o código, a demonstração e a documentação.
-
-Os diagramas de arquitetura e de classes serão revisados para refletir exatamente o sistema efetivamente entregue.
-
-## Como testar o estado atual no Remix
-
-### Deploy do oráculo
-
-1. Compile [`MonetaryOracle.sol`](./contracts/MonetaryOracle.sol) com Solidity `0.8.24`;
-2. implante `MonetaryOracle` usando a Conta 0 como `oracleOperator`;
-3. confirme que `currentIndex()` retorna `1000000`.
-
-### Deploy dos contratos principais
-
-Compile os contratos em [`contracts/`](./contracts/):
-
-1. implante `QuitusToken` passando:
-   - `tokenIssuer`: Conta 0;
-   - `monetaryOracleAddress`: endereço do `MonetaryOracle`;
-2. implante `DebitusToken` usando Conta 0 como `tokenIssuer`;
-3. implante `CompensationManager` com os endereços de QTS e DBT;
-4. em QTS e DBT, execute `setCompensationManager` com o endereço do manager.
-
-### Demonstração da atualização
-
-Com a Conta 0:
+O deploy gera automaticamente:
 
 ```text
-tokenizePrecatorio(hash, CONTA_1, 100000)
+frontend/public/deployment.json
 ```
 
-Confirme:
+com os endereços dos contratos da rede local.
 
-```text
-balanceOf(CONTA_1) = 100000
-lastAppliedIndex(CONTA_1) = 1000000
+### Terminal 3 — frontend
+
+```bash
+npm run frontend:dev
 ```
 
-No `MonetaryOracle`, usando a conta operadora:
+Abra a URL exibida pelo Vite e conecte a carteira à rede Hardhat local (`31337`).
 
-```text
-updateIndex(1010000)
-```
+## Documentação
 
-No `QuitusToken`:
+O índice da documentação está em [`docs/README.md`](./docs/README.md).
 
-```text
-previewBalance(CONTA_1) = 101000
-```
+Principais documentos:
 
-Execute:
+- [Arquitetura do sistema](./docs/arquitetura/sistema.md)
+- [Diagrama e responsabilidades dos contratos](./docs/arquitetura/contratos.md)
+- [Modelo da solução](./docs/modelo-solucao.md)
+- [Fluxo de tokenização](./docs/fluxos/tokenizacao.md)
+- [Fluxo de compensação](./docs/fluxos/compensacao.md)
+- [Fluxo de mercado secundário](./docs/fluxos/mercado-secundario.md)
+- [Deploy](./docs/operacao/deploy.md)
+- [Testes](./docs/operacao/testes.md)
+- [Roteiro de demonstração](./docs/operacao/roteiro-demo.md)
 
-```text
-syncBalance(CONTA_1)
-```
+## Limitações da PoC
 
-Depois:
-
-```text
-balanceOf(CONTA_1) = 101000
-lastAppliedIndex(CONTA_1) = 1010000
-```
-
-O evento `MonetaryAdjustmentApplied` deve registrar a correção aplicada.
-
-## Decisões de arquitetura atuais
-
-- documentos, CPF e informações processuais continuam off-chain;
-- hashes, saldos, permissões e eventos ficam on-chain;
-- o oráculo é separado do token;
-- o índice é cumulativo;
-- a atualização de QTS é lazy para evitar iterar por todos os titulares;
-- a correção monetária é materializada como mint adicional de QTS;
-- a compensação consome `FiscalDebt.remainingAmount` e materializa/queima DBT na mesma transação;
-- a compensação permanece atômica: falhas no processamento fiscal revertem também a queima de QTS;
-- o mercado secundário registra ordens e negociações on-chain, usando ETH de teste apenas como liquidação simulada.
-
-## Limites atuais
-
-O índice utilizado é um mock acadêmico. O sistema não:
-
-- consulta índice oficial;
-- aplica regras jurídicas reais de atualização;
-- valida juridicamente precatórios ou créditos fiscais;
-- integra TJPB ou Fazenda Pública;
-- representa uma implantação de produção.
-
-A prova de conceito demonstra o mecanismo técnico de atualização monetária e execução em contratos inteligentes.
+- não valida juridicamente precatórios ou obrigações fiscais;
+- não integra sistemas reais do TJPB/Fazenda;
+- não utiliza fonte oficial para o índice monetário;
+- usa ETH de teste como mock de liquidação do mercado;
+- não implementa identidade institucional, custódia de chaves ou governança de produção;
+- não substitui auditoria de segurança nem implantação permissionada de produção.

@@ -233,9 +233,9 @@ Já implementado:
 - consumo de `FiscalDebt.remainingAmount` pela compensação;
 - emissão e queima transitória de DBT;
 - compensação atômica entre QTS e a obrigação fiscal;
-- mercado secundário com ordens de compra e venda de QTS.
+- mercado secundário com ordens de compra e venda de QTS;
+- frontend React para operação da PoC.
 
 Ainda não implementado:
 
-- frontend;
 - configuração/deploy em uma rede pública ou institucional.

@@ -1,3 +1,6 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
 import { network } from "hardhat";
 
 const { viem, networkName } = await network.create();
@@ -13,68 +16,41 @@ const oracle = await viem.deployContract(
   [issuer.account.address],
 );
 
-console.log(`MonetaryOracle: ${oracle.address}`);
-
 const qts = await viem.deployContract(
   "QuitusToken",
-  [
-    issuer.account.address,
-    oracle.address,
-  ],
+  [issuer.account.address, oracle.address],
 );
-
-console.log(`QuitusToken: ${qts.address}`);
 
 const dbt = await viem.deployContract(
   "DebitusToken",
   [issuer.account.address],
 );
 
-console.log(`DebitusToken: ${dbt.address}`);
-
 const manager = await viem.deployContract(
   "CompensationManager",
-  [
-    qts.address,
-    dbt.address,
-  ],
+  [qts.address, dbt.address],
 );
-
-console.log(`CompensationManager: ${manager.address}`);
 
 const marketplace = await viem.deployContract(
   "QuitusMarketplace",
   [qts.address],
 );
 
-console.log(`QuitusMarketplace: ${marketplace.address}`);
-
-console.log("Configuring CompensationManager on QTS...");
-
 const qtsManagerTx = await qts.write.setCompensationManager(
   [manager.address],
   { account: issuer.account },
 );
-
-await publicClient.waitForTransactionReceipt({
-  hash: qtsManagerTx,
-  confirmations: 1,
-});
-
-console.log("Configuring CompensationManager on DBT...");
+await publicClient.waitForTransactionReceipt({ hash: qtsManagerTx });
 
 const dbtManagerTx = await dbt.write.setCompensationManager(
   [manager.address],
   { account: issuer.account },
 );
-
-await publicClient.waitForTransactionReceipt({
-  hash: dbtManagerTx,
-  confirmations: 1,
-});
+await publicClient.waitForTransactionReceipt({ hash: dbtManagerTx });
 
 const deployment = {
   network: networkName,
+  chainId: await publicClient.getChainId(),
   issuer: issuer.account.address,
   contracts: {
     monetaryOracle: oracle.address,
@@ -85,6 +61,16 @@ const deployment = {
   },
 };
 
-console.log("");
-console.log("Deployment completed.");
+console.log("\nDeployment completed:");
 console.log(JSON.stringify(deployment, null, 2));
+
+if (networkName === "localhost") {
+  const output = path.resolve(
+    process.cwd(),
+    "../frontend/public/deployment.json",
+  );
+
+  await mkdir(path.dirname(output), { recursive: true });
+  await writeFile(output, `${JSON.stringify(deployment, null, 2)}\n`, "utf8");
+  console.log(`\nFrontend deployment file: ${output}`);
+}

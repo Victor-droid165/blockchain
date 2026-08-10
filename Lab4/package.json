@@ -2,17 +2,20 @@
   "name": "quitus-debitus-lab4",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "workspaces": [
+    "blockchain",
+    "frontend"
+  ],
   "scripts": {
-    "build": "hardhat build",
-    "test": "hardhat test",
-    "deploy": "hardhat run scripts/deploy.ts",
-    "node": "hardhat node",
-    "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost"
-  },
-  "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox-viem": "5.0.7",
-    "hardhat": "3.12.0"
+    "build": "npm run build --workspace quitus-debitus-blockchain && npm run build --workspace quitus-debitus-frontend",
+    "test": "npm run test --workspace quitus-debitus-blockchain",
+    "chain:build": "npm run build --workspace quitus-debitus-blockchain",
+    "chain:test": "npm run test --workspace quitus-debitus-blockchain",
+    "chain:node": "npm run node --workspace quitus-debitus-blockchain",
+    "chain:deploy": "npm run deploy --workspace quitus-debitus-blockchain",
+    "chain:deploy:localhost": "npm run deploy:localhost --workspace quitus-debitus-blockchain",
+    "frontend:dev": "npm run dev --workspace quitus-debitus-frontend",
+    "frontend:build": "npm run build --workspace quitus-debitus-frontend"
   },
   "engines": {
     "node": ">=22.13.0"
