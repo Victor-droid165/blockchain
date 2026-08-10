@@ -29,7 +29,8 @@ O DBT não precisa ser emitido antecipadamente. Durante a compensação, `Debitu
 2. Implantar `QuitusToken`, passando a primeira conta como `tokenIssuer` e o endereço do `MonetaryOracle`;
 3. Implantar `DebitusToken`, passando a primeira conta como `tokenIssuer`;
 4. Implantar `CompensationManager`, passando os endereços de QTS e DBT;
-5. Nos dois tokens, chamar `setCompensationManager` com o endereço do gerenciador.
+5. Nos dois tokens, chamar `setCompensationManager` com o endereço do gerenciador;
+6. Implantar `QuitusMarketplace` passando o endereço de `QuitusToken`.
 
 ## Valores de exemplo
 
@@ -109,7 +110,50 @@ Mostrar:
 - aumento de `1000` unidades de QTS;
 - evento `MonetaryAdjustmentApplied`.
 
-### 3. Registrar a obrigação fiscal
+### 3. Demonstrar o mercado secundário
+
+Usando a segunda conta, aprovar o marketplace para movimentar `10000` unidades:
+
+```text
+approve(ENDERECO_DO_MARKETPLACE, 10000)
+```
+
+Criar uma ordem de venda em `QuitusMarketplace`:
+
+```text
+createSellOrder(10000, PRECO_EM_WEI_POR_UNIDADE)
+```
+
+Mostrar:
+
+- evento `OrderCreated`;
+- `orders(orderId).remaining = 10000`;
+- lado `Sell`;
+- preço configurado.
+
+Com uma terceira conta, preencher a ordem enviando exatamente:
+
+```text
+10000 * PRECO_EM_WEI_POR_UNIDADE
+```
+
+em ETH de teste para:
+
+```text
+fillSellOrder(orderId, 10000)
+```
+
+Mostrar:
+
+- evento `OrderFilled`;
+- `orders(orderId).active = false`;
+- `totalTrades = 1`;
+- `lastTradePriceWei` igual ao preço da ordem;
+- transferência de `10000` QTS da segunda para a terceira conta.
+
+> Para continuar a demonstração de compensação usando a segunda conta, tokenize inicialmente `110000` em vez de `100000`, ou recrie o cenário em uma nova execução. O objetivo desta seção é demonstrar o mecanismo do mercado de forma isolada.
+
+### 4. Registrar a obrigação fiscal
 
 Na conta emissora, chamar em `DebitusToken`:
 
@@ -129,7 +173,7 @@ Mostrar:
 - `active = true`;
 - `balanceOf(SEGUNDA_CONTA) = 0` em DBT antes da compensação.
 
-### 4. Executar a compensação
+### 5. Executar a compensação
 
 Trocar para a segunda conta e chamar em `CompensationManager`:
 

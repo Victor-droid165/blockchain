@@ -94,6 +94,22 @@ O solicitante precisa possuir QTS suficiente e ser o devedor associado à `Fisca
 
 A emissão antecipada por `issueFiscalCredit(...)` foi removida: o usuário não precisa manter saldo DBT antes da compensação.
 
+#### Mercado secundário de QTS
+
+[`contracts/QuitusMarketplace.sol`](./contracts/QuitusMarketplace.sol) implementa um livro de ordens simplificado com:
+
+- ofertas de venda (`Sell`);
+- ofertas de compra (`Buy`);
+- execução parcial ou total;
+- cancelamento;
+- histórico de negociações por eventos `OrderFilled`.
+
+As ordens de compra mantêm ETH de teste em escrow. Nas ordens de venda, os QTS permanecem com o vendedor até a execução; por isso, o vendedor precisa aprovar o marketplace com `approve(...)` e manter saldo/allowance suficientes.
+
+O preço é expresso em **wei por unidade interna de QTS**. Como QTS possui duas casas decimais, uma unidade interna representa `0,01 QTS`.
+
+O uso de ETH é apenas um mock técnico da liquidação financeira da PoC e não representa a forma de pagamento de uma implantação institucional.
+
 ### Exemplo
 
 Estado inicial:
@@ -137,7 +153,6 @@ R$ 1.000,00 → R$ 1.010,00
 
 ### Ainda não implementado
 
-- mercado secundário;
 - frontend/dashboard;
 - testes automatizados;
 - script de deploy;
@@ -219,7 +234,8 @@ O evento `MonetaryAdjustmentApplied` deve registrar a correção aplicada.
 - a atualização de QTS é lazy para evitar iterar por todos os titulares;
 - a correção monetária é materializada como mint adicional de QTS;
 - a compensação consome `FiscalDebt.remainingAmount` e materializa/queima DBT na mesma transação;
-- a compensação permanece atômica: falhas no processamento fiscal revertem também a queima de QTS.
+- a compensação permanece atômica: falhas no processamento fiscal revertem também a queima de QTS;
+- o mercado secundário registra ordens e negociações on-chain, usando ETH de teste apenas como liquidação simulada.
 
 ## Limites atuais
 

@@ -349,7 +349,7 @@ compensate(
 
 ## Mercado secundário de QTS
 
-A prova de conceito deverá permitir uma negociação simples de QTS.
+A prova de conceito implementa negociação simples de QTS por `QuitusMarketplace`.
 
 O objetivo é demonstrar o caminho entre:
 
@@ -357,21 +357,24 @@ O objetivo é demonstrar o caminho entre:
 credor original → QTS → comprador/devedor fiscal
 ```
 
-O escopo mínimo planejado é:
+O contrato suporta:
 
 - criar oferta de venda;
-- consultar ofertas;
-- comprar total ou parcialmente;
-- cancelar oferta;
-- registrar eventos.
+- criar oferta de compra;
+- consultar ordens pelo identificador;
+- preencher total ou parcialmente uma ordem;
+- cancelar uma ordem;
+- registrar o histórico de negociações por eventos.
 
-O contrato de mercado não deverá criar QTS. Ele apenas movimentará tokens já existentes.
+O marketplace não cria QTS. Ele utiliza `transferFrom` para movimentar tokens já existentes.
 
 ### Liquidação na prova de conceito
 
-Caso seja necessário demonstrar a troca financeira sem integração bancária, poderá ser usado **ETH de teste** apenas como mock técnico.
+A liquidação financeira usa **ETH de teste** como mock técnico.
 
-Isso não significa que a solução institucional proposta utilizaria ETH como moeda de liquidação.
+Ordens de compra depositam o valor total em escrow no marketplace. Ordens de venda recebem o pagamento no momento do preenchimento.
+
+Isso não significa que uma implantação institucional utilizaria ETH como moeda de liquidação.
 
 ---
 

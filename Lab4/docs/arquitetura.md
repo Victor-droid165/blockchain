@@ -15,7 +15,7 @@ flowchart LR
         DB[(Banco de dados operacional<br/>planejado)]
         DOC[(Documentos e dados sigilosos)]
         IDX[Indexador de eventos<br/>planejado]
-        MKT[Interface / livro de ofertas<br/>planejado]
+        MKTUI[Interface do mercado<br/>planejada]
     end
 
     subgraph ON["Blockchain — on-chain"]
@@ -23,7 +23,7 @@ flowchart LR
         QTS[QuitusToken<br/>QTS]
         DBT[DebitusToken<br/>DBT + obrigações fiscais]
         CMP[CompensationManager]
-        FUT[Marketplace / Settlement<br/>planejado]
+        MKT[QuitusMarketplace]
     end
 
     C -. futura interface .-> FE
@@ -51,8 +51,10 @@ flowchart LR
     IDX -.-> API
     API -.-> FE
 
-    FE -.-> MKT
-    MKT -. liquidação futura .-> FUT
+    FE -. futura interface .-> MKTUI
+    MKTUI -. transações .-> MKT
+    C -->|cria/preenche ordens| MKT
+    MKT -->|transferFrom / transfer| QTS
 ```
 
 ## O que fica on-chain
@@ -65,7 +67,7 @@ flowchart LR
 - Último índice aplicado a cada conta QTS;
 - Registro único das compensações executadas;
 - Eventos de emissão, atualização monetária, transferência, queima, registro fiscal e compensação;
-- Futuramente, ordens e liquidação das operações do mercado secundário.
+- Ordens de compra e venda do mercado secundário, valores remanescentes e eventos de negociação.
 
 ## O que fica off-chain
 
@@ -75,7 +77,7 @@ flowchart LR
 - Evidências e documentos usados pela instituição para autorizar a emissão;
 - Banco operacional, autenticação, interface e indexação dos eventos;
 - Fonte institucional real do índice monetário;
-- Componentes de mercado secundário enquanto ainda não implementados.
+- Interface de usuário e indexação amigável do histórico de mercado.
 
 ## Justificativas preliminares
 
@@ -84,7 +86,8 @@ flowchart LR
 3. **Atomicidade:** a compensação queima QTS, materializa e queima DBT e reduz a obrigação fiscal na mesma transação. Se uma etapa falhar, nenhuma alteração permanece.
 4. **Atualização monetária:** `MonetaryOracle` publica um índice cumulativo e `QuitusToken` o utiliza para materializar correções de forma lazy.
 5. **Integração institucional:** backend, autenticação e integrações reais com TJPB/Fazenda ainda são componentes planejados.
-6. **Evolução:** marketplace, indexador e aplicação web continuam planejados e só devem ser considerados implementados quando existirem no código.
+6. **Mercado secundário:** `QuitusMarketplace` mantém ofertas on-chain e usa ETH de teste apenas como mecanismo técnico de liquidação.
+7. **Evolução:** indexador, backend e aplicação web continuam planejados e só devem ser considerados implementados quando existirem no código.
 
 ## Estado atual
 
@@ -92,4 +95,4 @@ Já existem on-chain `MonetaryOracle`, `QuitusToken`, `DebitusToken` e `Compensa
 
 `CompensationManager.compensate(referenceId, fiscalDebtIdHash, amount)` já consome `FiscalDebt.remainingAmount`. O solicitante não mantém DBT previamente: `DebitusToken` emite e queima o DBT correspondente dentro da própria compensação.
 
-Marketplace, indexador, backend e aplicação web ainda não estão implementados.
+`QuitusMarketplace` já implementa ordens de compra e venda, execução parcial/total e cancelamento. Indexador, backend e aplicação web ainda não estão implementados.

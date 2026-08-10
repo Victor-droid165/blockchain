@@ -96,6 +96,25 @@ classDiagram
         +settleFiscalDebtForCompensation(idHash, debtor, amount)
     }
 
+    class IMarketToken {
+        <<interface>>
+        +transfer(to, amount) bool
+        +transferFrom(from, to, amount) bool
+    }
+
+    class QuitusMarketplace {
+        +enum OrderSide
+        +mapping orders
+        +uint256 nextOrderId
+        +uint256 totalTrades
+        +uint256 lastTradePriceWei
+        +createSellOrder(amount, pricePerUnitWei) uint256
+        +createBuyOrder(amount, pricePerUnitWei) uint256
+        +fillSellOrder(orderId, amount)
+        +fillBuyOrder(orderId, amount)
+        +cancelOrder(orderId)
+    }
+
     ControlledToken <|-- QuitusToken
     ControlledToken <|-- DebitusToken
 
@@ -108,6 +127,7 @@ classDiagram
     ICompensableToken <|-- IQuitusCompensableToken
     CompensationManager --> IQuitusCompensableToken : QTS
     CompensationManager --> IDebitusCompensableToken : obrigação fiscal / DBT
+    QuitusMarketplace --> IMarketToken : transfere QTS
 ```
 
 ## Responsabilidades
@@ -154,6 +174,28 @@ Durante a compensação, `settleFiscalDebtForCompensation`:
 
 A função só pode ser chamada pelo `CompensationManager` autorizado.
 
+### `QuitusMarketplace`
+
+Implementa o mercado secundário simplificado de QTS.
+
+Cada ordem contém:
+
+- `maker`;
+- lado (`Sell` ou `Buy`);
+- quantidade original;
+- quantidade remanescente;
+- preço em wei por unidade interna de QTS;
+- instante de criação;
+- estado ativo.
+
+Nas ordens de venda, os QTS não ficam em custódia do marketplace: o vendedor precisa manter saldo e allowance até a execução.
+
+Nas ordens de compra, o ETH de teste correspondente ao valor total fica em escrow no contrato. Preenchimentos parciais liberam proporcionalmente esse saldo e o cancelamento devolve a parcela remanescente.
+
+Os eventos `OrderCreated`, `OrderFilled` e `OrderCancelled` formam o histórico on-chain das negociações. `lastTradePriceWei` e `totalTrades` expõem indicadores básicos para a interface.
+
+O ETH utilizado nessa PoC é apenas um mock de liquidação e não representa uma decisão de arquitetura para produção.
+
 ### `CompensationManager`
 
 Coordena a compensação atualmente implementada.
@@ -190,10 +232,10 @@ Já implementado:
 - registro explícito de `FiscalDebt`;
 - consumo de `FiscalDebt.remainingAmount` pela compensação;
 - emissão e queima transitória de DBT;
-- compensação atômica entre QTS e a obrigação fiscal.
+- compensação atômica entre QTS e a obrigação fiscal;
+- mercado secundário com ordens de compra e venda de QTS.
 
 Ainda não implementado:
 
-- mercado secundário;
 - frontend;
 - testes automatizados e scripts de deploy.
