@@ -160,7 +160,14 @@ Explique: invalidação encerra a validade operacional daquele proxy. O históri
 
 ## Variante opcional: rede de testes pública
 
-Se o deploy em Sepolia (ver [`deploy.md`](./deploy.md)) já tiver sido feito antes da apresentação, é possível abrir o link do endereço no Etherscan para mostrar que os contratos existem fora da máquina de quem apresenta, com código-fonte verificado. Essa variante não substitui a demonstração local — só reforça a evidência de deploy em rede pública.
+Essa variante não substitui a demonstração local — só reforça a evidência de deploy em rede pública. Ao final (ou em paralelo), abra no Etherscan Sepolia:
+
+- Proxy `PrecatorioNFT`: https://sepolia.etherscan.io/address/0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8
+- Proxy `PrecatorioMarketplace`: https://sepolia.etherscan.io/address/0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087
+- Código verificado (`PrecatorioNFT`): https://sepolia.etherscan.io/address/0x971B0fdFA3658813449F144c38B7c1c7Ed4346cB#code
+- Código verificado (`PrecatorioMarketplace`): https://sepolia.etherscan.io/address/0x20EC3b95B1Fb7A3a4e4e85d83Bb0C2c41E3b9e4c#code
+
+Detalhes do deploy (bloco, admin, implementações) em [`deploy.md`](./deploy.md#deploy-atual-na-sepolia).
 
 ## Limitações a declarar
 

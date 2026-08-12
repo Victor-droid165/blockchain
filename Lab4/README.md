@@ -168,6 +168,13 @@ npm run chain:deploy:sepolia
 
 Requer `blockchain/.env` preenchido a partir de `blockchain/.env.example` (RPC URL, chave privada de conta de teste e, opcionalmente, chave do Etherscan para verificação). Detalhes em [`docs/operacao/deploy.md`](./docs/operacao/deploy.md). O frontend detecta a rede automaticamente pelo `chainId` gravado em `deployment.json` — não é necessário alterar código para trocar de rede local para Sepolia.
 
+Deploy atual (proxies, código verificado no Etherscan):
+
+- `PrecatorioNFT`: [`0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8`](https://sepolia.etherscan.io/address/0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8)
+- `PrecatorioMarketplace`: [`0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087`](https://sepolia.etherscan.io/address/0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087)
+
+Tabela completa (implementações + links `#code`) em [`docs/operacao/deploy.md`](./docs/operacao/deploy.md#deploy-atual-na-sepolia).
+
 ## Upgrade de demonstração
 
 Com a rede local e os contratos válidos:

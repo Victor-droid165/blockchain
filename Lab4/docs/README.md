@@ -27,7 +27,7 @@ Ambos usam Mermaid e representam **somente a implementação vigente**.
 ## Operação
 
 - [`operacao/desenvolvimento.md`](./operacao/desenvolvimento.md) — estrutura, dependências e comandos;
-- [`operacao/deploy.md`](./operacao/deploy.md) — deploy dos proxies UUPS e arquivos de deployment;
+- [`operacao/deploy.md`](./operacao/deploy.md) — deploy dos proxies UUPS, arquivos de deployment e endereços atuais na Sepolia;
 - [`operacao/frontend.md`](./operacao/frontend.md) — páginas, integração Viem e responsabilidades;
 - [`operacao/testes.md`](./operacao/testes.md) — suítes e cenários cobertos;
 - [`operacao/roteiro-demo.md`](./operacao/roteiro-demo.md) — sequência recomendada para demonstrar a PoC.

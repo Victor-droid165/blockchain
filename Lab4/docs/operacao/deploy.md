@@ -93,6 +93,26 @@ A PoC também pode ser implantada na Sepolia, satisfazendo o entregável de cont
 
 A rede Hardhat local continua sendo o ambiente padrão de desenvolvimento e da demonstração principal; a Sepolia é um caminho adicional para evidenciar o deploy em rede pública.
 
+### Deploy atual na Sepolia
+
+Implantação realizada na chain `11155111` (bloco `11470403`). Admin do deploy: `0x42c15620b4adac4ef8ae3953f5526b18b4cebe12`.
+
+**Proxies** (endereços usados pelo frontend / interação):
+
+| Contrato | Proxy | Etherscan |
+| --- | --- | --- |
+| `PrecatorioNFT` | `0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8` | [abrir](https://sepolia.etherscan.io/address/0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8) |
+| `PrecatorioMarketplace` | `0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087` | [abrir](https://sepolia.etherscan.io/address/0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087) |
+
+**Implementações** (código-fonte verificado no Etherscan):
+
+| Contrato | Implementação | Código verificado |
+| --- | --- | --- |
+| `PrecatorioNFT` | `0x971B0fdFA3658813449F144c38B7c1c7Ed4346cB` | [abrir](https://sepolia.etherscan.io/address/0x971B0fdFA3658813449F144c38B7c1c7Ed4346cB#code) |
+| `PrecatorioMarketplace` | `0x20EC3b95B1Fb7A3a4e4e85d83Bb0C2c41E3b9e4c` | [abrir](https://sepolia.etherscan.io/address/0x20EC3b95B1Fb7A3a4e4e85d83Bb0C2c41E3b9e4c#code) |
+
+O histórico UUPS desse deploy fica em `blockchain/.openzeppelin/sepolia.json` e deve permanecer versionado. Os arquivos locais `blockchain/deployments/sepolia.json` e `frontend/public/deployment.json` continuam ignorados pelo Git.
+
 ## Upgrade de demonstração
 
 O repositório inclui duas implementações de teste:
