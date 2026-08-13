@@ -31,6 +31,11 @@ contract PrecatorioNFT is
     mapping(uint256 => Precatorio) public precatorios;
     mapping(bytes32 => bool) public identifiersUsed;
 
+    /// @dev Único endereço autorizado a queimar precatórios na compensação
+    ///      atômica. Variável adicionada ao final do layout de storage para
+    ///      preservar a compatibilidade de upgrade do proxy.
+    address public compensationManager;
+
     event PrecatorioMinted(
         uint256 indexed tokenId,
         bytes32 indexed identifier,
@@ -44,12 +49,18 @@ contract PrecatorioNFT is
         uint256 invalidatedAt
     );
 
+    event CompensationManagerUpdated(
+        address indexed previousManager,
+        address indexed newManager
+    );
+
     error InvalidAddress();
     error InvalidIdentifier();
     error InvalidFaceValue();
     error IdentifierAlreadyUsed();
     error ContractInvalidatedPermanently();
     error OwnershipRenouncementDisabled();
+    error UnauthorizedCompensationManager();
 
     modifier whenValid() {
         if (invalidated) revert ContractInvalidatedPermanently();
@@ -106,6 +117,35 @@ contract PrecatorioNFT is
             faceValue,
             block.timestamp
         );
+    }
+
+    /**
+     * @notice Define o módulo autorizado a queimar precatórios compensados.
+     */
+    function setCompensationManager(
+        address manager
+    ) external onlyOwner whenValid {
+        if (manager == address(0)) revert InvalidAddress();
+
+        emit CompensationManagerUpdated(compensationManager, manager);
+
+        compensationManager = manager;
+    }
+
+    /**
+     * @notice Queima um precatório consumido pela compensação atômica.
+     * @dev Chamado somente pelo módulo de compensação, dentro da mesma
+     *      transação que abate o débito fiscal. Os dados em `precatorios`
+     *      permanecem como histórico consultável do ativo extinto.
+     */
+    function burnForCompensation(
+        uint256 tokenId
+    ) external whenValid whenNotPaused {
+        if (msg.sender != compensationManager) {
+            revert UnauthorizedCompensationManager();
+        }
+
+        _burn(tokenId);
     }
 
     /**

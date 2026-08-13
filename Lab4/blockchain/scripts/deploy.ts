@@ -40,6 +40,23 @@ const monetaryOracle = await upgradesApi.deployProxy(
   { kind: "uups" },
 );
 
+const compensationManager = await upgradesApi.deployProxy(
+  "CompensationManager",
+  [
+    admin.account.address,
+    precatorioNFT.address,
+    monetaryOracle.address,
+  ],
+  { kind: "uups" },
+);
+
+// Autoriza o módulo de compensação a queimar precatórios compensados.
+const authorizeTx = await precatorioNFT.write.setCompensationManager(
+  [compensationManager.address],
+  { account: admin.account },
+);
+await publicClient.waitForTransactionReceipt({ hash: authorizeTx });
+
 const deployment = {
   network: networkName,
   chainId: await publicClient.getChainId(),
@@ -49,6 +66,7 @@ const deployment = {
     precatorioNFT: precatorioNFT.address,
     precatorioMarketplace: precatorioMarketplace.address,
     monetaryOracle: monetaryOracle.address,
+    compensationManager: compensationManager.address,
   },
 };
 

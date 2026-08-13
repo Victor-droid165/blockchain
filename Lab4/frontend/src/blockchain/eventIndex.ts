@@ -213,29 +213,39 @@ export async function loadProtocolEventIndex(
     }
   }
 
-  const precatorios = await Promise.all(
-    mintLogs.map(async (log) => {
-      const args = log.args as MintEventArgs;
-      const tokenId = required(args.tokenId, "tokenId");
+  const precatorios = (
+    await Promise.all(
+      mintLogs.map(async (log) => {
+        const args = log.args as MintEventArgs;
+        const tokenId = required(args.tokenId, "tokenId");
 
-      const owner = (await publicClient.readContract({
-        address: deployment.contracts.precatorioNFT,
-        abi: precatorioNFTAbi,
-        functionName: "ownerOf",
-        args: [tokenId],
-      })) as Address;
+        let owner: Address;
 
-      return {
-        tokenId,
-        identifier: required(args.identifier, "identifier"),
-        faceValue: required(args.faceValue, "faceValue"),
-        registeredAt: required(args.registeredAt, "registeredAt"),
-        owner,
-        activeListingId:
-          activeListingByTokenId.get(tokenId.toString()) ?? 0n,
-      } satisfies PrecatorioAsset;
-    }),
-  );
+        try {
+          owner = (await publicClient.readContract({
+            address: deployment.contracts.precatorioNFT,
+            abi: precatorioNFTAbi,
+            functionName: "ownerOf",
+            args: [tokenId],
+          })) as Address;
+        } catch {
+          // NFT queimado pela compensação atômica: sai do índice de ativos
+          // vigentes. O histórico permanece nos eventos on-chain.
+          return undefined;
+        }
+
+        return {
+          tokenId,
+          identifier: required(args.identifier, "identifier"),
+          faceValue: required(args.faceValue, "faceValue"),
+          registeredAt: required(args.registeredAt, "registeredAt"),
+          owner,
+          activeListingId:
+            activeListingByTokenId.get(tokenId.toString()) ?? 0n,
+        } satisfies PrecatorioAsset;
+      }),
+    )
+  ).filter((asset): asset is PrecatorioAsset => asset !== undefined);
 
   const ownerByTokenId = new Map<string, Address>(
     precatorios.map((asset) => [asset.tokenId.toString(), asset.owner]),

@@ -8,6 +8,9 @@ export type Deployment = {
   contracts: {
     precatorioNFT: Address;
     precatorioMarketplace: Address;
+    /** Opcionais: deployments anteriores à compensação não os possuem. */
+    monetaryOracle?: Address;
+    compensationManager?: Address;
   };
 };
 
