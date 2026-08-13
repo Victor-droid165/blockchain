@@ -55,6 +55,29 @@ E o lado da demanda (oferta/lance):
 - bloqueio de `makeOffer`/`acceptOffer` durante pausa e depois de invalidação;
 - bloqueio de autoaceite quando o comprador de uma oferta passa a ser o proprietário do NFT, sem impedir o cancelamento e o reembolso.
 
+## `MonetaryOracle.test.ts`
+
+Cobre:
+
+- índice inicial neutro (`1e18`) e valor ajustado igual ao valor de face;
+- publicação de novo índice e correção proporcional do valor;
+- restrição da publicação ao owner;
+- rejeição de índice regressivo (correção acumulada não regride);
+- consulta de `adjustedValue` disponível durante a pausa;
+- pausa/retomada, invalidação permanente e renúncia de ownership desabilitada.
+
+## `CompensationManager.test.ts`
+
+Cobre:
+
+- registro de débito fiscal mock restrito ao owner e com identificador único;
+- compensação atômica: queima do NFT e abatimento do débito pelo valor corrigido na mesma transação, com registro permanente (termo de quitação);
+- preservação dos dados históricos do precatório extinto;
+- exigência de que o chamador seja o dono do NFT **e** o devedor do débito;
+- rejeição quando o débito não comporta o crédito corrigido, sem consumir nada;
+- queima restrita ao módulo de compensação autorizado (`burnForCompensation`);
+- bloqueio de compensação e registro com o contrato pausado ou invalidado, mantendo débitos e histórico consultáveis.
+
 ## Integração contínua
 
 O workflow [`.github/workflows/lab4-ci.yml`](../../../.github/workflows/lab4-ci.yml), na raiz do repositório, roda `npm ci`, compila os contratos, executa `npm test` e builda o frontend a cada push/PR que toque a pasta `Lab4/`. Serve como evidência automatizada e reprodutível de que o repositório permanece funcional, complementando a suíte de testes.

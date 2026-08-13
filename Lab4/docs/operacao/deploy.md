@@ -1,13 +1,15 @@
 # Deploy
 
-O deploy oficial da PoC implanta **dois proxies UUPS**:
+O deploy oficial da PoC implanta **quatro proxies UUPS**:
 
 ```text
 PrecatorioNFT
 PrecatorioMarketplace
+MonetaryOracle
+CompensationManager
 ```
 
-O antigo conjunto QTS/DBT não faz mais parte do script.
+O antigo conjunto QTS/DBT fungível não faz mais parte do script; oráculo e compensação foram reintroduzidos adaptados ao modelo NFT (ver [`decisoes/oraculo-e-compensacao.md`](../decisoes/oraculo-e-compensacao.md)).
 
 ## Rede local
 
@@ -28,7 +30,10 @@ O script:
 1. obtém a primeira conta da rede como administrador;
 2. implanta o proxy UUPS de `PrecatorioNFT`;
 3. implanta o proxy UUPS de `PrecatorioMarketplace`, apontando para o NFT;
-4. grava os endereços.
+4. implanta o proxy UUPS de `MonetaryOracle` (índice inicial neutro `1,0`);
+5. implanta o proxy UUPS de `CompensationManager`, apontando para NFT e oráculo;
+6. autoriza o `CompensationManager` a queimar precatórios (`setCompensationManager`);
+7. grava os endereços.
 
 Exemplo do resultado:
 
@@ -39,7 +44,9 @@ Exemplo do resultado:
   "admin": "0x...",
   "contracts": {
     "precatorioNFT": "0x...",
-    "precatorioMarketplace": "0x..."
+    "precatorioMarketplace": "0x...",
+    "monetaryOracle": "0x...",
+    "compensationManager": "0x..."
   }
 }
 ```
@@ -96,6 +103,8 @@ A rede Hardhat local continua sendo o ambiente padrão de desenvolvimento e da d
 ### Deploy atual na Sepolia
 
 Implantação realizada na chain `11155111` (bloco `11470403`). Admin do deploy: `0x42c15620b4adac4ef8ae3953f5526b18b4cebe12`.
+
+> **Atenção:** o deploy abaixo é anterior à reintrodução de `MonetaryOracle` e `CompensationManager`; esses dois proxies (e a versão do `PrecatorioNFT` com `burnForCompensation`) ainda não estão na Sepolia. Antes da entrega final, refazer o deploy público e atualizar esta tabela.
 
 **Proxies** (endereços usados pelo frontend / interação):
 

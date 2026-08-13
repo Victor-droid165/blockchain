@@ -25,17 +25,25 @@ PrecatorioMarketplace
 listagem (oferta) / oferta em ETH (demanda) / compra / aceite / cancelamento
         ↓
 transferência de propriedade
+
+MonetaryOracle (índice de correção)
+        ↓
+CompensationManager
+        ↓
+compensa: queima o NFT + abate o débito fiscal na mesma transação
 ```
 
 `PrecatorioMarketplace` implementa os dois lados do livro de ofertas do mercado secundário: **oferta** (listagem a preço fixo do vendedor) e **demanda** (lance em ETH de teste de um comprador, escrowado no contrato até aceite ou cancelamento). O histórico de preços é reconstituído no frontend a partir dos eventos de venda de ambos os fluxos.
 
-Os dois contratos usam:
+`MonetaryOracle` é o oráculo institucional (mock) de **atualização monetária**: publica um índice acumulado de correção e o valor corrigido do precatório é `faceValue × índice`. `CompensationManager` executa a **compensação atômica** da proposta Quitus & Debitus: mantém um registro mock de débitos fiscais e, em uma única transação indivisível, queima o NFT do precatório e abate o débito pelo valor corrigido, gravando um termo de quitação consultável on-chain.
+
+Os quatro contratos usam:
 
 - pausa temporária;
 - proxy UUPS para atualização enquanto válidos;
 - invalidação permanente e irreversível.
 
-A arquitetura anterior de QTS/DBT, oráculo e compensação foi removida da árvore atual. A decisão e a justificativa da mudança permanecem em [`docs/decisoes/revisao-escopo-nft.md`](./docs/decisoes/revisao-escopo-nft.md). Os ajustes de robustez feitos depois dessa simplificação — livro de ofertas, rede de testes pública, frontend multi-rede e CI — estão em [`docs/decisoes/livro-de-ofertas-e-rede-publica.md`](./docs/decisoes/livro-de-ofertas-e-rede-publica.md).
+A arquitetura anterior de QTS/DBT fungíveis foi removida da árvore atual; a decisão e a justificativa permanecem em [`docs/decisoes/revisao-escopo-nft.md`](./docs/decisoes/revisao-escopo-nft.md). Os ajustes de robustez feitos depois dessa simplificação — livro de ofertas, rede de testes pública, frontend multi-rede e CI — estão em [`docs/decisoes/livro-de-ofertas-e-rede-publica.md`](./docs/decisoes/livro-de-ofertas-e-rede-publica.md). O oráculo de atualização monetária e a compensação atômica, requisitos mínimos do enunciado do Projeto 4, foram reintroduzidos adaptados ao modelo NFT — ver [`docs/decisoes/oraculo-e-compensacao.md`](./docs/decisoes/oraculo-e-compensacao.md).
 
 ## Estrutura
 
@@ -45,6 +53,8 @@ Lab4/
 │   ├── contracts/
 │   │   ├── PrecatorioNFT.sol
 │   │   ├── PrecatorioMarketplace.sol
+│   │   ├── MonetaryOracle.sol
+│   │   ├── CompensationManager.sol
 │   │   └── mocks/
 │   │       ├── PrecatorioNFTV2.sol
 │   │       └── PrecatorioMarketplaceV2.sol
@@ -53,7 +63,9 @@ Lab4/
 │   │   └── upgrade-demo.ts
 │   ├── test/
 │   │   ├── PrecatorioNFT.test.ts
-│   │   └── PrecatorioMarketplace.test.ts
+│   │   ├── PrecatorioMarketplace.test.ts
+│   │   ├── MonetaryOracle.test.ts
+│   │   └── CompensationManager.test.ts
 │   ├── hardhat.config.ts
 │   ├── .env.example
 │   └── package.json
@@ -143,7 +155,11 @@ O deploy cria os proxies de:
 ```text
 PrecatorioNFT
 PrecatorioMarketplace
+MonetaryOracle
+CompensationManager
 ```
+
+e já autoriza o `CompensationManager` a queimar precatórios compensados.
 
 e gera:
 
@@ -172,6 +188,8 @@ Deploy atual (proxies, código verificado no Etherscan):
 
 - `PrecatorioNFT`: [`0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8`](https://sepolia.etherscan.io/address/0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8)
 - `PrecatorioMarketplace`: [`0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087`](https://sepolia.etherscan.io/address/0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087)
+
+> Esse deploy é anterior a `MonetaryOracle`/`CompensationManager`; um novo deploy na Sepolia (com a tabela atualizada) fica pendente para a entrega final.
 
 Tabela completa (implementações + links `#code`) em [`docs/operacao/deploy.md`](./docs/operacao/deploy.md#deploy-atual-na-sepolia).
 
@@ -240,6 +258,9 @@ Documentos principais:
 - não há identidade/custódia de chaves ou governança de produção;
 - não há indexador persistente off-chain; a descoberta da PoC usa eventos consultados diretamente pelo RPC a partir do bloco de deploy;
 - listagens e ofertas cobrem sempre o NFT completo, sem execução parcial;
+- a compensação também consome o NFT inteiro: o débito precisa comportar o crédito corrigido, e não há compensação parcial do precatório;
+- o oráculo de atualização monetária é um mock institucional operado pelo admin, não uma fonte externa real;
+- a interface ainda não expõe oráculo e compensação; a demonstração desses fluxos usa scripts/console (Hardhat);
 - a implementação não substitui auditoria de segurança.
 
 ## Entregas

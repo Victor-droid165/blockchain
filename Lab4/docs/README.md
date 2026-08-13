@@ -17,7 +17,8 @@ Ambos usam Mermaid e representam **somente a implementação vigente**.
 
 - [`modelo-solucao.md`](./modelo-solucao.md) — domínio, regras, segurança, limitações e decisões técnicas atuais;
 - [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md) — histórico da simplificação para ERC-721, marketplace, UUPS e invalidação permanente;
-- [`decisoes/livro-de-ofertas-e-rede-publica.md`](./decisoes/livro-de-ofertas-e-rede-publica.md) — ofertas (lado de demanda), rede Sepolia, frontend multi-rede e CI, dentro do escopo NFT já confirmado.
+- [`decisoes/livro-de-ofertas-e-rede-publica.md`](./decisoes/livro-de-ofertas-e-rede-publica.md) — ofertas (lado de demanda), rede Sepolia, frontend multi-rede e CI, dentro do escopo NFT já confirmado;
+- [`decisoes/oraculo-e-compensacao.md`](./decisoes/oraculo-e-compensacao.md) — reintrodução do oráculo de atualização monetária e da compensação atômica, adaptados ao modelo NFT.
 
 ## Fluxos
 
@@ -42,7 +43,8 @@ docs/
 │   └── contratos.md
 ├── decisoes/
 │   ├── revisao-escopo-nft.md
-│   └── livro-de-ofertas-e-rede-publica.md
+│   ├── livro-de-ofertas-e-rede-publica.md
+│   └── oraculo-e-compensacao.md
 ├── fluxos/
 │   ├── tokenizacao-precatorio.md
 │   └── mercado-secundario.md
