@@ -283,9 +283,9 @@ export async function loadProtocolEventIndex(
       }),
   );
 
-  // A oferta não depende de quem a criou continuar dono do NFT: quem aceita
-  // é sempre o proprietário atual. A única pré-condição de execução é ele
-  // ter aprovado o marketplace, exatamente como no fluxo de listagem.
+  // Quem aceita é o proprietário atual, desde que ele não seja o próprio
+  // comprador da oferta e tenha aprovado o marketplace. Isso evita registrar
+  // uma venda artificial quando o comprador recebeu o NFT por outro fluxo.
   await Promise.all(
     [...offersById.values()]
       .filter((offer) => offer.active)
@@ -295,6 +295,13 @@ export async function loadProtocolEventIndex(
         if (!owner) {
           offer.executable = false;
           offer.unavailableReason = "Precatório não encontrado.";
+          return;
+        }
+
+        if (sameAddress(owner, offer.buyer)) {
+          offer.executable = false;
+          offer.unavailableReason =
+            "O comprador já é o proprietário; cancele a oferta para recuperar o ETH.";
           return;
         }
 

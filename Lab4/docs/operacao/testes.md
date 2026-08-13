@@ -52,7 +52,8 @@ E o lado da demanda (oferta/lance):
 - encerramento automático da listagem a preço fixo ao aceitar uma oferta concorrente pelo mesmo NFT;
 - aceite de oferta pelo **novo** proprietário depois de uma venda por listagem (a oferta sobrevive à troca de proprietário);
 - `cancelOffer` continuando disponível mesmo com o marketplace pausado ou permanentemente invalidado;
-- bloqueio de `makeOffer`/`acceptOffer` durante pausa e depois de invalidação.
+- bloqueio de `makeOffer`/`acceptOffer` durante pausa e depois de invalidação;
+- bloqueio de autoaceite quando o comprador de uma oferta passa a ser o proprietário do NFT, sem impedir o cancelamento e o reembolso.
 
 ## Integração contínua
 
