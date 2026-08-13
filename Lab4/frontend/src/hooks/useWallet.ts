@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import type { Address } from "viem";
 
 import { connectInjectedWallet } from "../blockchain/client";
+import { toFriendlyError } from "../blockchain/errors";
 
 export function useWallet() {
   const [account, setAccount] = useState<Address>();
@@ -17,8 +18,7 @@ export function useWallet() {
       setAccount(connection.account);
       return connection;
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Falha ao conectar carteira.";
-      setError(message);
+      setError(toFriendlyError(cause));
       throw cause;
     } finally {
       setConnecting(false);

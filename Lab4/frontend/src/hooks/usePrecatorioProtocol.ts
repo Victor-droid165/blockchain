@@ -6,6 +6,7 @@ import {
   precatorioNFTAbi,
 } from "../blockchain/abis";
 import { getPublicClient, type ConnectedWallet } from "../blockchain/client";
+import { toFriendlyError } from "../blockchain/errors";
 import { loadProtocolEventIndex } from "../blockchain/eventIndex";
 import type {
   AdminTarget,
@@ -140,13 +141,9 @@ export function usePrecatorioProtocol(
 
   useEffect(() => {
     refresh().catch((cause: unknown) => {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Falha ao consultar os contratos.",
-      );
+      setError(toFriendlyError(cause, deployment));
     });
-  }, [refresh]);
+  }, [refresh, deployment]);
 
   const run = useCallback(
     async (
@@ -173,9 +170,7 @@ export function usePrecatorioProtocol(
 
         return hash;
       } catch (cause) {
-        const message =
-          cause instanceof Error ? cause.message : "Transação falhou.";
-        setError(message);
+        setError(toFriendlyError(cause, deployment));
         setStatus(undefined);
         throw cause;
       } finally {
