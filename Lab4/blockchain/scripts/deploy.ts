@@ -32,6 +32,31 @@ const precatorioMarketplace = await upgradesApi.deployProxy(
   { kind: "uups" },
 );
 
+// Mock institucional de atualização monetária: começa no fator neutro 1,0
+// e o admin publica novos índices conforme o roteiro de demonstração.
+const monetaryOracle = await upgradesApi.deployProxy(
+  "MonetaryOracle",
+  [admin.account.address],
+  { kind: "uups" },
+);
+
+const compensationManager = await upgradesApi.deployProxy(
+  "CompensationManager",
+  [
+    admin.account.address,
+    precatorioNFT.address,
+    monetaryOracle.address,
+  ],
+  { kind: "uups" },
+);
+
+// Autoriza o módulo de compensação a queimar precatórios compensados.
+const authorizeTx = await precatorioNFT.write.setCompensationManager(
+  [compensationManager.address],
+  { account: admin.account },
+);
+await publicClient.waitForTransactionReceipt({ hash: authorizeTx });
+
 const deployment = {
   network: networkName,
   chainId: await publicClient.getChainId(),
@@ -40,6 +65,8 @@ const deployment = {
   contracts: {
     precatorioNFT: precatorioNFT.address,
     precatorioMarketplace: precatorioMarketplace.address,
+    monetaryOracle: monetaryOracle.address,
+    compensationManager: compensationManager.address,
   },
 };
 

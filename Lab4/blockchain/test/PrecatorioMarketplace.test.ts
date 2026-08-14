@@ -470,6 +470,64 @@ describe("PrecatorioMarketplace", () => {
     );
   });
 
+  it("impede que o comprador aceite a própria oferta após se tornar dono do NFT", async () => {
+    const { nft, marketplace } = await deploySystem();
+    const amount = 1200000000000000n;
+
+    await waitFor(
+      await nft.write.mintPrecatorio(
+        [
+          seller.account.address,
+          identifier("precatorio-autoaceite"),
+          600000n,
+        ],
+        { account: admin.account },
+      ),
+    );
+
+    await waitFor(
+      await marketplace.write.makeOffer([1n], {
+        account: buyer.account,
+        value: amount,
+      }),
+    );
+
+    // O comprador recebe o NFT fora do marketplace enquanto sua oferta
+    // continua ativa e com ETH escrowado no contrato.
+    await waitFor(
+      await nft.write.transferFrom(
+        [seller.account.address, buyer.account.address, 1n],
+        { account: seller.account },
+      ),
+    );
+
+    await waitFor(
+      await nft.write.approve([marketplace.address, 1n], {
+        account: buyer.account,
+      }),
+    );
+
+    await assert.rejects(
+      marketplace.write.acceptOffer([1n], { account: buyer.account }),
+    );
+
+    assert.equal(await marketplace.read.totalSales(), 0n);
+
+    const activeOffer = await marketplace.read.offers([1n]);
+    assert.equal(activeOffer[4], true);
+
+    // O valor não fica preso: o comprador ainda pode cancelar e receber o
+    // reembolso pelo fluxo já previsto no contrato.
+    await waitFor(
+      await marketplace.write.cancelOffer([1n], {
+        account: buyer.account,
+      }),
+    );
+
+    const cancelledOffer = await marketplace.read.offers([1n]);
+    assert.equal(cancelledOffer[4], false);
+  });
+
   it("encerra a listagem a preço fixo ao aceitar uma oferta concorrente pelo mesmo NFT", async () => {
     const { nft, marketplace } = await deploySystem();
     const offerAmount = 900000000000000n;

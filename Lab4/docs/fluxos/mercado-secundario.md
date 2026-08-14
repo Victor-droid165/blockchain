@@ -85,6 +85,7 @@ sequenceDiagram
 
     Proprietário->>MKT: acceptOffer(offerId)
     MKT->>NFT: ownerOf(tokenId)
+    MKT->>MKT: bloqueia se proprietário atual = comprador da oferta
     MKT->>NFT: verifica aprovação
     MKT->>MKT: encerra listagem ativa do mesmo tokenId, se houver
     MKT->>MKT: active = false
@@ -93,7 +94,7 @@ sequenceDiagram
     MKT-->>Comprador: OfferAccepted
 ```
 
-Quem aceita é sempre o proprietário **atual** do `tokenId`, não necessariamente quem era proprietário quando o lance foi feito: uma oferta sobrevive a uma venda por listagem do mesmo NFT, entrando para o novo proprietário decidir.
+Quem aceita é sempre o proprietário **atual** do `tokenId`, não necessariamente quem era proprietário quando o lance foi feito: uma oferta sobrevive a uma venda por listagem do mesmo NFT, entrando para o novo proprietário decidir. A exceção é quando o proprietário atual é o próprio comprador da oferta — por exemplo, após uma transferência direta fora do marketplace. Nesse caso, o autoaceite é rejeitado e o comprador deve cancelar a oferta para recuperar o ETH escrowado.
 
 ## Cancelamento de oferta
 

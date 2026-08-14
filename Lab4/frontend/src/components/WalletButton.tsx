@@ -13,6 +13,9 @@ export function WalletButton({
 }) {
   return (
     <button className="wallet-button" onClick={onConnect} disabled={connecting}>
+      {account ? (
+        <span className="wallet-dot" aria-hidden="true" />
+      ) : null}
       {connecting ? "Conectando…" : account ? shortAddress(account) : "Conectar carteira"}
     </button>
   );

@@ -52,7 +52,31 @@ E o lado da demanda (oferta/lance):
 - encerramento automático da listagem a preço fixo ao aceitar uma oferta concorrente pelo mesmo NFT;
 - aceite de oferta pelo **novo** proprietário depois de uma venda por listagem (a oferta sobrevive à troca de proprietário);
 - `cancelOffer` continuando disponível mesmo com o marketplace pausado ou permanentemente invalidado;
-- bloqueio de `makeOffer`/`acceptOffer` durante pausa e depois de invalidação.
+- bloqueio de `makeOffer`/`acceptOffer` durante pausa e depois de invalidação;
+- bloqueio de autoaceite quando o comprador de uma oferta passa a ser o proprietário do NFT, sem impedir o cancelamento e o reembolso.
+
+## `MonetaryOracle.test.ts`
+
+Cobre:
+
+- índice inicial neutro (`1e18`) e valor ajustado igual ao valor de face;
+- publicação de novo índice e correção proporcional do valor;
+- restrição da publicação ao owner;
+- rejeição de índice regressivo (correção acumulada não regride);
+- consulta de `adjustedValue` disponível durante a pausa;
+- pausa/retomada, invalidação permanente e renúncia de ownership desabilitada.
+
+## `CompensationManager.test.ts`
+
+Cobre:
+
+- registro de débito fiscal mock restrito ao owner e com identificador único;
+- compensação atômica: queima do NFT e abatimento do débito pelo valor corrigido na mesma transação, com registro permanente (termo de quitação);
+- preservação dos dados históricos do precatório extinto;
+- exigência de que o chamador seja o dono do NFT **e** o devedor do débito;
+- rejeição quando o débito não comporta o crédito corrigido, sem consumir nada;
+- queima restrita ao módulo de compensação autorizado (`burnForCompensation`);
+- bloqueio de compensação e registro com o contrato pausado ou invalidado, mantendo débitos e histórico consultáveis.
 
 ## Integração contínua
 

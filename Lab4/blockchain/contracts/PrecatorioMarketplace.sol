@@ -131,6 +131,7 @@ contract PrecatorioMarketplace is
     error OfferInactive();
     error UnauthorizedBuyer();
     error CannotOfferOwnToken();
+    error CannotAcceptOwnOffer();
     error OfferAlreadyActiveForToken();
     error ContractInvalidatedPermanently();
     error OwnershipRenouncementDisabled();
@@ -368,6 +369,7 @@ contract PrecatorioMarketplace is
         if (precatorioNFT.ownerOf(offer.tokenId) != msg.sender) {
             revert NotTokenOwner();
         }
+        if (offer.buyer == msg.sender) revert CannotAcceptOwnOffer();
 
         bool approved = (
             precatorioNFT.getApproved(offer.tokenId) == address(this) ||
