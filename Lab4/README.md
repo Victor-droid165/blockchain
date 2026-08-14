@@ -263,8 +263,12 @@ Documentos principais:
 - o oráculo de atualização monetária é um mock institucional operado pelo admin, não uma fonte externa real;
 - a implementação não substitui auditoria de segurança.
 
+## Agradecimentos
+
+Este projeto foi proposto pelo Tribunal de Justiça da Paraíba (TJPB). Agradecemos a **José Gutemberg Gomes Lacerda** pela autorização para o uso acadêmico no contexto da disciplina.
+
+As opiniões e a implementação desta prova de conceito são da equipe do projeto e **não representam posição oficial** do TJPB.
+
 ## Entregas
 
-Os diagramas em `docs/arquitetura/` foram atualizados para refletir a arquitetura vigente. O histórico Git registra a transição do modelo QTS/DBT para ERC-721 e, em seguida, o endurecimento da versão NFT (livro de ofertas, rede pública, CI).
-
-Antes da entrega final, validar build/testes (local e via CI), fluxo completo da interface — incluindo ofertas —, documentação, vídeo e tag exigida pela disciplina.
+Os diagramas em `docs/arquitetura/` foram atualizados para refletir a arquitetura vigente. O histórico Git registra a transição do modelo QTS/DBT para ERC-721 e, em seguida, o aprimoramento da versão NFT (livro de ofertas, rede pública, CI).
