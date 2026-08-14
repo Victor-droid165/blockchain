@@ -10,7 +10,8 @@
     "node": "hardhat node",
     "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
-    "upgrade-demo:localhost": "hardhat run scripts/upgrade-demo.ts --network localhost"
+    "upgrade-demo:localhost": "hardhat run scripts/upgrade-demo.ts --network localhost",
+    "extend-with-compensation:sepolia": "hardhat run scripts/extend-with-compensation.ts --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "5.0.7",

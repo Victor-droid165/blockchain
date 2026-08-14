@@ -3,22 +3,31 @@ import { useMemo, useState } from "react";
 import { shortAddress } from "./blockchain/utils";
 import { StatusBanner } from "./components/StatusBanner";
 import { WalletButton } from "./components/WalletButton";
+import { useCompensationProtocol } from "./hooks/useCompensationProtocol";
 import { useDeployment } from "./hooks/useDeployment";
 import { usePrecatorioProtocol } from "./hooks/usePrecatorioProtocol";
 import { useWallet } from "./hooks/useWallet";
 import { AdminPage } from "./pages/AdminPage";
+import { CompensacaoPage } from "./pages/CompensacaoPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { MarketplacePage } from "./pages/MarketplacePage";
 import { MintPrecatorioPage } from "./pages/MintPrecatorioPage";
 import { MyPrecatoriosPage } from "./pages/MyPrecatoriosPage";
 
-type Page = "dashboard" | "marketplace" | "meus" | "emitir" | "admin";
+type Page =
+  | "dashboard"
+  | "marketplace"
+  | "meus"
+  | "emitir"
+  | "compensacao"
+  | "admin";
 
 const NAV: Array<{ id: Page; label: string }> = [
   { id: "dashboard", label: "Visão geral" },
   { id: "marketplace", label: "Marketplace" },
   { id: "meus", label: "Meus precatórios" },
   { id: "emitir", label: "Emitir NFT" },
+  { id: "compensacao", label: "Oráculo & Compensação" },
   { id: "admin", label: "Administração" },
 ];
 
@@ -27,6 +36,11 @@ export default function App() {
   const wallet = useWallet();
   const { deployment, error: deploymentError } = useDeployment();
   const protocol = usePrecatorioProtocol(
+    deployment,
+    wallet.account,
+    wallet.connect,
+  );
+  const compensation = useCompensationProtocol(
     deployment,
     wallet.account,
     wallet.connect,
@@ -62,6 +76,12 @@ export default function App() {
       protocol.marketplaceState.invalidated ||
       protocol.nftState.paused ||
       protocol.nftState.invalidated;
+    const compensationUnavailable =
+      compensation.oracleState.paused ||
+      compensation.oracleState.invalidated ||
+      compensation.compensationState.paused ||
+      compensation.compensationState.invalidated ||
+      nftUnavailable;
 
     switch (page) {
       case "marketplace":
@@ -103,15 +123,37 @@ export default function App() {
             onMint={protocol.mintPrecatorio}
           />
         );
+      case "compensacao":
+        return (
+          <CompensacaoPage
+            account={wallet.account}
+            isAdmin={compensation.isAdmin}
+            available={compensation.available}
+            disabled={compensationUnavailable}
+            oracleInfo={compensation.oracleInfo}
+            ownedPrecatorios={protocol.ownedPrecatorios}
+            myDebts={compensation.myDebts}
+            compensations={compensation.compensations}
+            loading={compensation.loading}
+            onUpdateIndex={compensation.updateIndex}
+            onRegisterDebt={compensation.registerDebt}
+            onCompensate={compensation.compensate}
+          />
+        );
       case "admin":
         return (
           <AdminPage
             isAdmin={protocol.isAdmin}
             nftState={protocol.nftState}
             marketplaceState={protocol.marketplaceState}
-            loading={protocol.loading}
+            oracleAvailable={compensation.available}
+            oracleState={compensation.oracleState}
+            compensationState={compensation.compensationState}
+            loading={protocol.loading || compensation.loading}
             onSetPaused={protocol.setPaused}
             onInvalidate={protocol.invalidate}
+            onSetOracleModulePaused={compensation.setPaused}
+            onInvalidateOracleModule={compensation.invalidate}
           />
         );
       default:
@@ -182,14 +224,24 @@ export default function App() {
             account={wallet.account}
             connecting={wallet.connecting}
             onConnect={() =>
-              void wallet.connect().then(() => protocol.refresh())
+              void wallet
+                .connect()
+                .then(() => Promise.all([protocol.refresh(), compensation.refresh()]))
             }
+            onSwitchAccount={() =>
+              void wallet
+                .switchAccount()
+                .then(() => Promise.all([protocol.refresh(), compensation.refresh()]))
+            }
+            onDisconnect={wallet.disconnect}
           />
         </header>
 
         <StatusBanner
-          status={protocol.status}
-          error={deploymentError ?? wallet.error ?? protocol.error}
+          status={protocol.status ?? compensation.status}
+          error={
+            deploymentError ?? wallet.error ?? protocol.error ?? compensation.error
+          }
         />
 
         {content}

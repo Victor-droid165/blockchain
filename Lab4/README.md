@@ -184,12 +184,12 @@ npm run chain:deploy:sepolia
 
 Requer `blockchain/.env` preenchido a partir de `blockchain/.env.example` (RPC URL, chave privada de conta de teste e, opcionalmente, chave do Etherscan para verificação). Detalhes em [`docs/operacao/deploy.md`](./docs/operacao/deploy.md). O frontend detecta a rede automaticamente pelo `chainId` gravado em `deployment.json` — não é necessário alterar código para trocar de rede local para Sepolia.
 
-Deploy atual (proxies, código verificado no Etherscan):
+Deploy atual (proxies dos quatro contratos, código verificado no Etherscan):
 
 - `PrecatorioNFT`: [`0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8`](https://sepolia.etherscan.io/address/0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8)
 - `PrecatorioMarketplace`: [`0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087`](https://sepolia.etherscan.io/address/0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087)
-
-> Esse deploy é anterior a `MonetaryOracle`/`CompensationManager`; um novo deploy na Sepolia (com a tabela atualizada) fica pendente para a entrega final.
+- `MonetaryOracle`: [`0x9A53278A32AF3e2dd5cA58AB3E8dBA63feB37dA1`](https://sepolia.etherscan.io/address/0x9A53278A32AF3e2dd5cA58AB3E8dBA63feB37dA1)
+- `CompensationManager`: [`0xab1D387a99d1140AD954dfA27965C77aEE59Cf21`](https://sepolia.etherscan.io/address/0xab1D387a99d1140AD954dfA27965C77aEE59Cf21)
 
 Tabela completa (implementações + links `#code`) em [`docs/operacao/deploy.md`](./docs/operacao/deploy.md#deploy-atual-na-sepolia).
 
@@ -229,7 +229,8 @@ A interface possui:
 - **Marketplace** — listar (oferta), enviar/cancelar ofertas (demanda), comprar e cancelar anúncios;
 - **Meus precatórios** — visualizar NFTs, aprovar o marketplace e aceitar ofertas recebidas;
 - **Emitir NFT** — mint institucional;
-- **Administração** — pausar, retomar e invalidar contratos.
+- **Oráculo & Compensação** — acompanhar o índice de correção monetária, publicar um novo índice (admin), registrar débitos fiscais mock (admin) e compensar um precatório próprio contra um débito próprio, com o termo de quitação resultante;
+- **Administração** — pausar, retomar e invalidar todos os quatro contratos.
 
 ## Documentação
 
@@ -260,7 +261,6 @@ Documentos principais:
 - listagens e ofertas cobrem sempre o NFT completo, sem execução parcial;
 - a compensação também consome o NFT inteiro: o débito precisa comportar o crédito corrigido, e não há compensação parcial do precatório;
 - o oráculo de atualização monetária é um mock institucional operado pelo admin, não uma fonte externa real;
-- a interface ainda não expõe oráculo e compensação; a demonstração desses fluxos usa scripts/console (Hardhat);
 - a implementação não substitui auditoria de segurança.
 
 ## Entregas

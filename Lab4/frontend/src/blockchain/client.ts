@@ -35,6 +35,8 @@ function resolveChain(chainId: number): Chain {
   );
 }
 
+const PUBLIC_SEPOLIA_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
+
 function resolveRpcUrl(chainId: number): string {
   if (chainId === hardhat.id) {
     return "http://127.0.0.1:8545";
@@ -42,6 +44,10 @@ function resolveRpcUrl(chainId: number): string {
 
   const override = import.meta.env.VITE_RPC_URL as string | undefined;
   if (override) return override;
+
+  if (chainId === sepolia.id) {
+    return PUBLIC_SEPOLIA_RPC;
+  }
 
   const [defaultRpc] = resolveChain(chainId).rpcUrls.default.http;
   if (!defaultRpc) {
@@ -51,6 +57,24 @@ function resolveRpcUrl(chainId: number): string {
   }
 
   return defaultRpc;
+}
+
+/**
+ * RPC anunciado à carteira em `wallet_addEthereumChain`. Nunca reutiliza
+ * `VITE_RPC_URL`: chaves de Alchemy/Infura no browser quebram o probe do
+ * MetaMask ("JSON is not a valid request object" / "RPC Request failed").
+ */
+function resolveWalletRpcUrl(chainId: number): string {
+  if (chainId === hardhat.id) {
+    return "http://127.0.0.1:8545";
+  }
+
+  if (chainId === sepolia.id) {
+    return PUBLIC_SEPOLIA_RPC;
+  }
+
+  const [defaultRpc] = resolveChain(chainId).rpcUrls.default.http;
+  return defaultRpc ?? PUBLIC_SEPOLIA_RPC;
 }
 
 let activeChain: Chain = hardhat;
@@ -104,6 +128,13 @@ export async function ensureNetwork() {
   }
 
   const chainIdHex = `0x${activeChain.id.toString(16)}`;
+  const currentChainId = (await window.ethereum.request({
+    method: "eth_chainId",
+  })) as string;
+
+  if (currentChainId.toLowerCase() === chainIdHex.toLowerCase()) {
+    return;
+  }
 
   try {
     await window.ethereum.request({
@@ -121,7 +152,7 @@ export async function ensureNetwork() {
           chainId: chainIdHex,
           chainName: activeChain.name,
           nativeCurrency: activeChain.nativeCurrency,
-          rpcUrls: [resolveRpcUrl(activeChain.id)],
+          rpcUrls: [resolveWalletRpcUrl(activeChain.id)],
         },
       ],
     });
@@ -151,3 +182,26 @@ export async function connectInjectedWallet() {
 }
 
 export type ConnectedWallet = Awaited<ReturnType<typeof connectInjectedWallet>>;
+
+/**
+ * Reabre o seletor de contas da carteira. MetaMask não tem um "logout"
+ * on-chain: `wallet_requestPermissions` força o modal de permissão/contas;
+ * se a carteira não implementar, cai no connect normal.
+ */
+export async function switchInjectedWallet() {
+  if (!window.ethereum) {
+    throw new Error("Nenhuma carteira injetada encontrada. Instale/abra o MetaMask.");
+  }
+
+  try {
+    await window.ethereum.request({
+      method: "wallet_requestPermissions",
+      params: [{ eth_accounts: {} }],
+    });
+  } catch (error) {
+    const code = (error as { code?: number }).code;
+    if (code === 4001) throw error;
+  }
+
+  return connectInjectedWallet();
+}

@@ -53,7 +53,9 @@ export function MyPrecatoriosPage({
                   <span className={asset.activeListingId ? "badge active" : "badge"}>
                     {asset.activeListingId
                       ? `Listado · #${asset.activeListingId}`
-                      : "Na carteira"}
+                      : asset.marketplaceApproved
+                        ? "Aprovado p/ marketplace"
+                        : "Na carteira"}
                   </span>
                 </div>
 
@@ -74,11 +76,13 @@ export function MyPrecatoriosPage({
                   disabled={
                     loading ||
                     marketplaceUnavailable ||
-                    asset.activeListingId !== 0n
+                    asset.marketplaceApproved
                   }
                   onClick={() => void onApprove(asset.tokenId)}
                 >
-                  Aprovar marketplace
+                  {asset.marketplaceApproved
+                    ? "Marketplace aprovado"
+                    : "Aprovar marketplace"}
                 </button>
 
                 {receivedOffers.length > 0 && (

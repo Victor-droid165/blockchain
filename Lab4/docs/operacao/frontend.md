@@ -35,11 +35,13 @@ frontend/src/
 │   ├── StatusBanner.tsx
 │   └── WalletButton.tsx
 ├── hooks/
+│   ├── useCompensationProtocol.ts
 │   ├── useDeployment.ts
 │   ├── usePrecatorioProtocol.ts
 │   └── useWallet.ts
 ├── pages/
 │   ├── AdminPage.tsx
+│   ├── CompensacaoPage.tsx
 │   ├── DashboardPage.tsx
 │   ├── MarketplacePage.tsx
 │   ├── MintPrecatorioPage.tsx
@@ -50,7 +52,9 @@ frontend/src/
 └── vite-env.d.ts
 ```
 
-Os nomes refletem o domínio atual; páginas e hooks de QTS, DBT, oráculo e compensação foram removidos.
+Os nomes refletem o domínio atual. `usePrecatorioProtocol` cobre `PrecatorioNFT`/`PrecatorioMarketplace`; `useCompensationProtocol` cobre `MonetaryOracle`/`CompensationManager` isoladamente, já que os dois últimos são opcionais no `deployment.json` (deploys anteriores à reintrodução do oráculo não os possuem).
+
+A barra superior conecta a carteira injetada, permite **Trocar conta** (reabre o seletor do MetaMask) e **Sair** (limpa só a sessão da PoC — a extensão continua desbloqueada).
 
 ## Páginas
 
@@ -71,32 +75,40 @@ Exibe:
 Permite:
 
 - selecionar um NFT próprio, definir preço em ETH de teste e criar listagem (oferta);
-- selecionar qualquer NFT que não seja seu e enviar um lance em ETH de teste, com ou sem listagem ativa (demanda);
-- visualizar cards de NFTs disponíveis e comprar;
+- selecionar um NFT de **outra conta** (listado ou não) e enviar um lance em ETH de teste (demanda); o formulário não lista os seus próprios tokens, porque o contrato rejeita oferta sobre NFT próprio;
+- nos cards de listagem de terceiros, comprar pelo preço fixo ou preencher o formulário de oferta com **Fazer oferta**;
 - cancelar listagem própria;
 - acompanhar e retirar as próprias ofertas enviadas.
 
 ### Meus precatórios
 
-Lista os NFTs da carteira conectada, permite aprovar o marketplace antes da venda e mostra as ofertas recebidas em cada NFT, com botão de aceite quando o marketplace já estiver aprovado.
+Lista os NFTs da carteira conectada, permite aprovar o marketplace antes da venda (o botão passa a **Marketplace aprovado** e fica desabilitado depois da transação) e mostra as ofertas recebidas em cada NFT, com botão de aceite quando o marketplace já estiver aprovado.
 
 ### Emitir NFT
 
 Fluxo institucional de mint. Só a conta administradora configurada no deploy consegue concluir a transação.
 
+### Oráculo & Compensação
+
+Só aparece funcional quando o `deployment.json` carregado inclui `monetaryOracle` e `compensationManager`; caso contrário, a página mostra um aviso em vez dos formulários. Quando disponível, expõe:
+
+- índice de correção vigente, data da última publicação e total de publicações (`MonetaryOracle`);
+- publicação de um novo índice, restrita à conta administradora (`updateIndex`);
+- registro de débito fiscal mock, restrito à conta administradora (`registerDebt`);
+- para qualquer conta conectada: seleção de um NFT próprio e de um débito do qual ela é devedora, com prévia do valor corrigido (calculada no cliente com o mesmo índice on-chain) antes de enviar `compensate`;
+- histórico de termos de quitação (`CompensationExecuted`), com precatório, débito, credor, valor de face, valor corrigido e data.
+
+O formulário de compensação recusa localmente combinações em que o débito não comporta o crédito corrigido, evitando uma reversão on-chain previsível (`DebtSmallerThanCredit`). Sequência completa em [`fluxos/compensacao-atomica.md`](../fluxos/compensacao-atomica.md).
+
 ### Administração
 
-Expõe:
-
-- `pause`;
-- `unpause`;
-- `invalidate`.
+Expõe `pause`/`unpause`/`invalidate` para `PrecatorioNFT` e `PrecatorioMarketplace`, e — quando o deployment os inclui — para `MonetaryOracle` e `CompensationManager` também.
 
 O upgrade não aparece como botão, pois exige uma nova implementação compilada/validada; a demonstração usa `npm run chain:upgrade-demo:localhost`.
 
 ## Consulta e descoberta por eventos
 
-O frontend não percorre sequencialmente todos os `tokenId`s, `listingId`s e `offerId`s. O deploy registra `deploymentBlock` e `eventIndex.ts` consulta, a partir desse bloco, os eventos `PrecatorioMinted`, `PrecatorioListed`, `PrecatorioSold`, `ListingCancelled`, `OfferMade`, `OfferCancelled` e `OfferAccepted` com `getContractEvents` do Viem.
+O frontend não percorre sequencialmente todos os `tokenId`s, `listingId`s, `offerId`s ou `debtId`s. O deploy registra `deploymentBlock` e `eventIndex.ts` consulta, a partir desse bloco, os eventos `PrecatorioMinted`, `PrecatorioListed`, `PrecatorioSold`, `ListingCancelled`, `OfferMade`, `OfferCancelled` e `OfferAccepted` com `getContractEvents` do Viem. `FiscalDebtRegistered` e `CompensationExecuted` reconstituem, da mesma forma, os débitos fiscais e os termos de quitação do `CompensationManager` — para cada débito descoberto por evento, o saldo `outstanding` é relido on-chain, já que `compensate` o reduz depois do registro inicial.
 
 Os eventos descobrem quais ativos, listagens e ofertas existem; leituras pontuais (`ownerOf`, `getApproved` e `isApprovedForAll`) confirmam o estado atual necessário à interface. Isso reduz chamadas inúteis para identificadores inexistentes e mantém a PoC sem backend próprio.
 

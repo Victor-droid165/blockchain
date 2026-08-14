@@ -16,6 +16,7 @@
     "chain:deploy:localhost": "npm run deploy:localhost --workspace quitus-debitus-blockchain",
     "chain:deploy:sepolia": "npm run deploy:sepolia --workspace quitus-debitus-blockchain",
     "chain:upgrade-demo:localhost": "npm run upgrade-demo:localhost --workspace quitus-debitus-blockchain",
+    "chain:extend-with-compensation:sepolia": "npm run extend-with-compensation:sepolia --workspace quitus-debitus-blockchain",
     "frontend:dev": "npm run dev --workspace quitus-debitus-frontend",
     "frontend:build": "npm run build --workspace quitus-debitus-frontend"
   },

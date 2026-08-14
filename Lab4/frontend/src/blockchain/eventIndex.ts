@@ -1,12 +1,15 @@
 import type { Address, Hex } from "viem";
 
 import {
+  compensationManagerAbi,
   precatorioMarketplaceAbi,
   precatorioNFTAbi,
 } from "./abis";
 import { getPublicClient } from "./client";
 import type {
+  CompensationRecord,
   Deployment,
+  FiscalDebt,
   MarketplaceListing,
   MarketplaceOffer,
   PrecatorioAsset,
@@ -64,11 +67,56 @@ type OfferAcceptedArgs = {
   acceptedAt?: bigint;
 };
 
+type FiscalDebtRegisteredArgs = {
+  debtId?: bigint;
+  identifier?: Hex;
+  debtor?: Address;
+  amount?: bigint;
+  registeredAt?: bigint;
+};
+
+type CompensationExecutedArgs = {
+  compensationId?: bigint;
+  tokenId?: bigint;
+  debtId?: bigint;
+  creditor?: Address;
+  faceValue?: bigint;
+  adjustedValue?: bigint;
+  executedAt?: bigint;
+};
+
 function required<T>(value: T | undefined, field: string): T {
   if (value === undefined) {
     throw new Error(`Evento on-chain sem campo obrigatório: ${field}.`);
   }
   return value;
+}
+
+async function isMarketplaceApproved(
+  deployment: Deployment,
+  tokenId: bigint,
+  owner: Address,
+): Promise<boolean> {
+  const publicClient = getPublicClient();
+  const [approvedAddress, approvedForAll] = (await Promise.all([
+    publicClient.readContract({
+      address: deployment.contracts.precatorioNFT,
+      abi: precatorioNFTAbi,
+      functionName: "getApproved",
+      args: [tokenId],
+    }),
+    publicClient.readContract({
+      address: deployment.contracts.precatorioNFT,
+      abi: precatorioNFTAbi,
+      functionName: "isApprovedForAll",
+      args: [owner, deployment.contracts.precatorioMarketplace],
+    }),
+  ])) as [Address, boolean];
+
+  return (
+    sameAddress(approvedAddress, deployment.contracts.precatorioMarketplace) ||
+    approvedForAll
+  );
 }
 
 /**
@@ -242,6 +290,11 @@ export async function loadProtocolEventIndex(
           owner,
           activeListingId:
             activeListingByTokenId.get(tokenId.toString()) ?? 0n,
+          marketplaceApproved: await isMarketplaceApproved(
+            deployment,
+            tokenId,
+            owner,
+          ),
         } satisfies PrecatorioAsset;
       }),
     )
@@ -264,27 +317,12 @@ export async function loadProtocolEventIndex(
           return;
         }
 
-        const [approvedAddress, approvedForAll] = (await Promise.all([
-          publicClient.readContract({
-            address: deployment.contracts.precatorioNFT,
-            abi: precatorioNFTAbi,
-            functionName: "getApproved",
-            args: [listing.tokenId],
-          }),
-          publicClient.readContract({
-            address: deployment.contracts.precatorioNFT,
-            abi: precatorioNFTAbi,
-            functionName: "isApprovedForAll",
-            args: [listing.seller, deployment.contracts.precatorioMarketplace],
-          }),
-        ])) as [Address, boolean];
-
         if (
-          !sameAddress(
-            approvedAddress,
-            deployment.contracts.precatorioMarketplace,
-          ) &&
-          !approvedForAll
+          !(await isMarketplaceApproved(
+            deployment,
+            listing.tokenId,
+            listing.seller,
+          ))
         ) {
           listing.executable = false;
           listing.unavailableReason =
@@ -315,28 +353,7 @@ export async function loadProtocolEventIndex(
           return;
         }
 
-        const [approvedAddress, approvedForAll] = (await Promise.all([
-          publicClient.readContract({
-            address: deployment.contracts.precatorioNFT,
-            abi: precatorioNFTAbi,
-            functionName: "getApproved",
-            args: [offer.tokenId],
-          }),
-          publicClient.readContract({
-            address: deployment.contracts.precatorioNFT,
-            abi: precatorioNFTAbi,
-            functionName: "isApprovedForAll",
-            args: [owner, deployment.contracts.precatorioMarketplace],
-          }),
-        ])) as [Address, boolean];
-
-        if (
-          !sameAddress(
-            approvedAddress,
-            deployment.contracts.precatorioMarketplace,
-          ) &&
-          !approvedForAll
-        ) {
+        if (!(await isMarketplaceApproved(deployment, offer.tokenId, owner))) {
           offer.executable = false;
           offer.unavailableReason =
             "O proprietário atual ainda não aprovou o marketplace.";
@@ -380,4 +397,84 @@ export async function loadProtocolEventIndex(
   );
 
   return { precatorios, listings, offers, sales };
+}
+
+/**
+ * Reconstitui débitos fiscais mock e compensações executadas a partir dos
+ * eventos do CompensationManager. `outstanding` é relido on-chain para cada
+ * débito, já que `compensate` o reduz depois do registro inicial.
+ *
+ * Retorna listas vazias quando o deployment ainda não possui
+ * `compensationManager` (deploys anteriores à reintrodução do oráculo).
+ */
+export async function loadCompensationEventIndex(
+  deployment: Deployment,
+): Promise<{ debts: FiscalDebt[]; compensations: CompensationRecord[] }> {
+  const compensationManager = deployment.contracts.compensationManager;
+  if (!compensationManager) {
+    return { debts: [], compensations: [] };
+  }
+
+  const publicClient = getPublicClient();
+  const fromBlock = BigInt(deployment.deploymentBlock ?? "0");
+
+  const [registeredLogs, executedLogs] = await Promise.all([
+    publicClient.getContractEvents({
+      address: compensationManager,
+      abi: compensationManagerAbi,
+      eventName: "FiscalDebtRegistered",
+      fromBlock,
+      toBlock: "latest",
+    }),
+    publicClient.getContractEvents({
+      address: compensationManager,
+      abi: compensationManagerAbi,
+      eventName: "CompensationExecuted",
+      fromBlock,
+      toBlock: "latest",
+    }),
+  ]);
+
+  const debts = await Promise.all(
+    registeredLogs.map(async (log) => {
+      const args = log.args as FiscalDebtRegisteredArgs;
+      const id = required(args.debtId, "debtId");
+
+      const [, , , outstanding] = (await publicClient.readContract({
+        address: compensationManager,
+        abi: compensationManagerAbi,
+        functionName: "debts",
+        args: [id],
+      })) as [Hex, Address, bigint, bigint, bigint];
+
+      return {
+        id,
+        identifier: required(args.identifier, "identifier"),
+        debtor: required(args.debtor, "debtor"),
+        originalAmount: required(args.amount, "amount"),
+        outstanding,
+        registeredAt: required(args.registeredAt, "registeredAt"),
+      } satisfies FiscalDebt;
+    }),
+  );
+
+  const compensations: CompensationRecord[] = executedLogs.map((log) => {
+    const args = log.args as CompensationExecutedArgs;
+    return {
+      id: required(args.compensationId, "compensationId"),
+      tokenId: required(args.tokenId, "tokenId"),
+      debtId: required(args.debtId, "debtId"),
+      creditor: required(args.creditor, "creditor"),
+      faceValue: required(args.faceValue, "faceValue"),
+      adjustedValue: required(args.adjustedValue, "adjustedValue"),
+      executedAt: required(args.executedAt, "executedAt"),
+    };
+  });
+
+  debts.sort((a, b) => (a.id === b.id ? 0 : a.id > b.id ? -1 : 1));
+  compensations.sort((a, b) =>
+    a.executedAt === b.executedAt ? 0 : a.executedAt > b.executedAt ? -1 : 1,
+  );
+
+  return { debts, compensations };
 }

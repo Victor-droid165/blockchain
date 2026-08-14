@@ -72,7 +72,7 @@ A variável nova foi adicionada **ao final do layout de storage**, preservando a
 ## Impacto no restante da PoC
 
 - **Marketplace**: inalterado. Uma listagem ou oferta sobre um NFT queimado deixa de ser executável (o `ownerOf` deixa de existir); o comprador de uma oferta segue podendo `cancelOffer` e recuperar o ETH escrowado.
-- **Frontend**: o índice de eventos tolera NFTs queimados (o token compensado sai da lista de ativos vigentes; o histórico permanece nos eventos). A interface dedicada de compensação/oráculo é evolução futura; a demonstração atual usa scripts/console.
+- **Frontend**: o índice de eventos tolera NFTs queimados (o token compensado sai da lista de ativos vigentes; o histórico permanece nos eventos). A página **Oráculo & Compensação** expõe o fluxo completo — publicação de índice e registro de débito (admin), compensação (credor-devedor) e histórico de termos de quitação — reconstituído a partir de `FiscalDebtRegistered`/`CompensationExecuted`; ver [`operacao/frontend.md`](../operacao/frontend.md#oráculo--compensação).
 - **Deploy**: o script implanta os quatro proxies e autoriza o `CompensationManager` no NFT na mesma execução.
 
 ## Referências técnicas

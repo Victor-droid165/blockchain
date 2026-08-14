@@ -104,7 +104,7 @@ A rede Hardhat local continua sendo o ambiente padrão de desenvolvimento e da d
 
 Implantação realizada na chain `11155111` (bloco `11470403`). Admin do deploy: `0x42c15620b4adac4ef8ae3953f5526b18b4cebe12`.
 
-> **Atenção:** o deploy abaixo é anterior à reintrodução de `MonetaryOracle` e `CompensationManager`; esses dois proxies (e a versão do `PrecatorioNFT` com `burnForCompensation`) ainda não estão na Sepolia. Antes da entrega final, refazer o deploy público e atualizar esta tabela.
+Os quatro proxies estão ativos: `PrecatorioNFT` e `PrecatorioMarketplace` foram implantados primeiro e depois tiveram a implementação **atualizada in-place** (mesmo endereço de proxy) para incorporar `burnForCompensation`/`setCompensationManager` e a correção que impede autoaceite de ofertas; `MonetaryOracle` e `CompensationManager` foram implantados na sequência — ver [«Estendendo um deploy existente»](#estendendo-um-deploy-existente-upgrade--novos-proxies) abaixo.
 
 **Proxies** (endereços usados pelo frontend / interação):
 
@@ -112,15 +112,42 @@ Implantação realizada na chain `11155111` (bloco `11470403`). Admin do deploy:
 | --- | --- | --- |
 | `PrecatorioNFT` | `0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8` | [abrir](https://sepolia.etherscan.io/address/0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8) |
 | `PrecatorioMarketplace` | `0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087` | [abrir](https://sepolia.etherscan.io/address/0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087) |
+| `MonetaryOracle` | `0x9A53278A32AF3e2dd5cA58AB3E8dBA63feB37dA1` | [abrir](https://sepolia.etherscan.io/address/0x9A53278A32AF3e2dd5cA58AB3E8dBA63feB37dA1) |
+| `CompensationManager` | `0xab1D387a99d1140AD954dfA27965C77aEE59Cf21` | [abrir](https://sepolia.etherscan.io/address/0xab1D387a99d1140AD954dfA27965C77aEE59Cf21) |
 
-**Implementações** (código-fonte verificado no Etherscan):
+**Implementações atuais** (código-fonte verificado no Etherscan):
 
 | Contrato | Implementação | Código verificado |
 | --- | --- | --- |
-| `PrecatorioNFT` | `0x971B0fdFA3658813449F144c38B7c1c7Ed4346cB` | [abrir](https://sepolia.etherscan.io/address/0x971B0fdFA3658813449F144c38B7c1c7Ed4346cB#code) |
-| `PrecatorioMarketplace` | `0x20EC3b95B1Fb7A3a4e4e85d83Bb0C2c41E3b9e4c` | [abrir](https://sepolia.etherscan.io/address/0x20EC3b95B1Fb7A3a4e4e85d83Bb0C2c41E3b9e4c#code) |
+| `PrecatorioNFT` | `0x9f2a7801676fc9f1CeeBd21be0382A3ed6Fb66aB` | [abrir](https://sepolia.etherscan.io/address/0x9f2a7801676fc9f1CeeBd21be0382A3ed6Fb66aB#code) |
+| `PrecatorioMarketplace` | `0x49A54D0cE6c477A85fB244E5C81D670309eea9A8` | [abrir](https://sepolia.etherscan.io/address/0x49A54D0cE6c477A85fB244E5C81D670309eea9A8#code) |
+| `MonetaryOracle` | `0xbe2A62257a4AB4481e1C1BA7614EdC3C057F810c` | [abrir](https://sepolia.etherscan.io/address/0xbe2A62257a4AB4481e1C1BA7614EdC3C057F810c#code) |
+| `CompensationManager` | `0x35Cc04eCd9ABAE185E0906542Ec61dE214Ec727B` | [abrir](https://sepolia.etherscan.io/address/0x35Cc04eCd9ABAE185E0906542Ec61dE214Ec727B#code) |
+
+As implementações originais de `PrecatorioNFT` (`0x971B0fdFA3658813449F144c38B7c1c7Ed4346cB`) e `PrecatorioMarketplace` (`0x20EC3b95B1Fb7A3a4e4e85d83Bb0C2c41E3b9e4c`) continuam verificadas no Etherscan como histórico do proxy, mas não são mais a implementação ativa.
 
 O histórico UUPS desse deploy fica em `blockchain/.openzeppelin/sepolia.json` e deve permanecer versionado. Os arquivos locais `blockchain/deployments/sepolia.json` e `frontend/public/deployment.json` continuam ignorados pelo Git.
+
+### Estendendo um deploy existente (upgrade + novos proxies)
+
+Quando um deploy já em produção (como o da Sepolia acima) precisa incorporar contratos novos que dependem de proxies já publicados — foi o caso de `MonetaryOracle`/`CompensationManager` chegando depois de `PrecatorioNFT`/`PrecatorioMarketplace` já estarem no ar —, um novo `deploy.ts` completo não serve: ele criaria proxies novos para os quatro contratos, invalidando os endereços de `PrecatorioNFT`/`PrecatorioMarketplace` já divulgados/verificados.
+
+Para esse cenário existe `scripts/extend-with-compensation.ts`:
+
+```bash
+npm run chain:extend-with-compensation:sepolia
+```
+
+O script:
+
+1. lê o `deployments/<network>.json` existente (precisa já ter `precatorioNFT`/`precatorioMarketplace`);
+2. confere que a conta configurada é o `admin` registrado no deployment (upgrade e `setCompensationManager` exigem a conta owner);
+3. faz `upgradeProxy` de `PrecatorioNFT` e `PrecatorioMarketplace` para as implementações atuais do repositório — **mesmo endereço de proxy**, `deploymentBlock` preservado (o índice de eventos do frontend continua cobrindo o histórico anterior);
+4. implanta proxies novos para `MonetaryOracle` e `CompensationManager`;
+5. autoriza o novo `CompensationManager` a queimar precatórios (`setCompensationManager`);
+6. regrava `deployments/<network>.json` e `frontend/public/deployment.json` com os quatro endereços.
+
+Essa é uma operação pontual — outros contratos, no futuro, provavelmente vão precisar de um script equivalente sob medida, não deste mesmo arquivo.
 
 ## Upgrade de demonstração
 

@@ -1,6 +1,7 @@
 import type {
   AdminTarget,
   ContractState,
+  OracleAdminTarget,
 } from "../blockchain/types";
 import { Panel } from "../components/Panel";
 
@@ -67,16 +68,29 @@ export function AdminPage({
   isAdmin,
   nftState,
   marketplaceState,
+  oracleAvailable,
+  oracleState,
+  compensationState,
   loading,
   onSetPaused,
   onInvalidate,
+  onSetOracleModulePaused,
+  onInvalidateOracleModule,
 }: {
   isAdmin: boolean;
   nftState: ContractState;
   marketplaceState: ContractState;
+  oracleAvailable: boolean;
+  oracleState: ContractState;
+  compensationState: ContractState;
   loading: boolean;
   onSetPaused: (target: AdminTarget, paused: boolean) => Promise<unknown>;
   onInvalidate: (target: AdminTarget) => Promise<unknown>;
+  onSetOracleModulePaused: (
+    target: OracleAdminTarget,
+    paused: boolean,
+  ) => Promise<unknown>;
+  onInvalidateOracleModule: (target: OracleAdminTarget) => Promise<unknown>;
 }) {
   return (
     <div className="page-stack">
@@ -105,6 +119,35 @@ export function AdminPage({
           onInvalidate={() => onInvalidate("marketplace")}
         />
       </div>
+
+      {oracleAvailable ? (
+        <div className="two-column">
+          <ContractControls
+            title="MonetaryOracle"
+            state={oracleState}
+            isAdmin={isAdmin}
+            loading={loading}
+            onSetPaused={(paused) => onSetOracleModulePaused("oracle", paused)}
+            onInvalidate={() => onInvalidateOracleModule("oracle")}
+          />
+
+          <ContractControls
+            title="CompensationManager"
+            state={compensationState}
+            isAdmin={isAdmin}
+            loading={loading}
+            onSetPaused={(paused) =>
+              onSetOracleModulePaused("compensation", paused)
+            }
+            onInvalidate={() => onInvalidateOracleModule("compensation")}
+          />
+        </div>
+      ) : (
+        <div className="notice">
+          Este deployment não inclui `MonetaryOracle`/`CompensationManager`;
+          nenhum controle administrativo é exibido para eles.
+        </div>
+      )}
 
       <Panel
         title="Upgrade UUPS"

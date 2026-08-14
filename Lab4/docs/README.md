@@ -1,6 +1,6 @@
 # Documentação — Quitus & Debitus
 
-Esta pasta documenta a versão atual da PoC do Projeto 4: **precatórios representados como NFTs ERC-721 e negociados em um marketplace on-chain**.
+Esta pasta documenta a versão atual da PoC do Projeto 4: **precatórios representados como NFTs ERC-721, negociados em um marketplace on-chain e compensáveis atomicamente contra débitos fiscais mock, com correção monetária publicada por um oráculo institucional mock**.
 
 A arquitetura original baseada em QTS/DBT foi substituída após feedback do professor. O motivo da mudança e as referências técnicas permanecem registrados em [`decisoes/revisao-escopo-nft.md`](./decisoes/revisao-escopo-nft.md), sem manter o domínio antigo misturado aos diagramas atuais.
 
@@ -23,7 +23,8 @@ Ambos usam Mermaid e representam **somente a implementação vigente**.
 ## Fluxos
 
 - [`fluxos/tokenizacao-precatorio.md`](./fluxos/tokenizacao-precatorio.md) — entrada mínima e emissão do `PrecatorioNFT`;
-- [`fluxos/mercado-secundario.md`](./fluxos/mercado-secundario.md) — aprovação, listagem, compra, cancelamento, ofertas e aceite de ofertas.
+- [`fluxos/mercado-secundario.md`](./fluxos/mercado-secundario.md) — aprovação, listagem, compra, cancelamento, ofertas e aceite de ofertas;
+- [`fluxos/compensacao-atomica.md`](./fluxos/compensacao-atomica.md) — publicação de índice, registro de débito fiscal mock e compensação atômica.
 
 ## Operação
 
@@ -47,7 +48,8 @@ docs/
 │   └── oraculo-e-compensacao.md
 ├── fluxos/
 │   ├── tokenizacao-precatorio.md
-│   └── mercado-secundario.md
+│   ├── mercado-secundario.md
+│   └── compensacao-atomica.md
 ├── operacao/
 │   ├── desenvolvimento.md
 │   ├── deploy.md

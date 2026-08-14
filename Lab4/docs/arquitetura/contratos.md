@@ -1,6 +1,8 @@
 # Diagrama de classes dos contratos
 
-O diagrama abaixo representa somente os contratos da arquitetura atual.
+O diagrama abaixo representa somente os contratos da arquitetura atual, divididos em dois grupos por responsabilidade — **ativo e mercado** (representação e negociação do precatório) e **oráculo e compensação** (correção monetária e quitação de débitos) — para manter cada diagrama legível. Os quatro contratos implementam `pause()`, `unpause()`, `invalidate()` e `_authorizeUpgrade()` de forma independente e idêntica em intenção; para não repetir esses métodos em cada classe, eles ficam documentados uma única vez em [«Estados administrativos»](#estados-administrativos).
+
+## Ativo e mercado
 
 ```mermaid
 classDiagram
@@ -10,39 +12,30 @@ classDiagram
         +approve(to, tokenId)
         +transferFrom(from, to, tokenId)
         +safeTransferFrom(from, to, tokenId)
-        +paused() bool
     }
 
     class OwnableUpgradeable {
         <<OpenZeppelin>>
         +owner() address
-        +transferOwnership(newOwner)
     }
 
     class UUPSUpgradeable {
         <<OpenZeppelin>>
-        #_authorizeUpgrade(newImplementation)
     }
 
     class ReentrancyGuardTransient {
         <<OpenZeppelin>>
-        +nonReentrant
     }
 
     class PrecatorioNFT {
         +uint256 nextTokenId
-        +bool invalidated
+        +address compensationManager
         +mapping precatorios
         +mapping identifiersUsed
-        +address compensationManager
         +initialize(initialOwner)
         +mintPrecatorio(to, identifier, faceValue) uint256
         +setCompensationManager(manager)
         +burnForCompensation(tokenId)
-        +pause()
-        +unpause()
-        +invalidate()
-        #_authorizeUpgrade(newImplementation)
     }
 
     class Precatorio {
@@ -53,15 +46,8 @@ classDiagram
 
     class PrecatorioMarketplace {
         +IERC721 precatorioNFT
-        +uint256 nextListingId
-        +uint256 totalSales
-        +uint256 lastSalePrice
-        +bool invalidated
         +mapping listings
-        +mapping activeListingByTokenId
-        +uint256 nextOfferId
         +mapping offers
-        +mapping activeOfferByBuyerAndToken
         +initialize(initialOwner, nft)
         +list(tokenId, price) uint256
         +buy(listingId)
@@ -69,17 +55,12 @@ classDiagram
         +makeOffer(tokenId) uint256
         +cancelOffer(offerId)
         +acceptOffer(offerId)
-        +pause()
-        +unpause()
-        +invalidate()
-        #_authorizeUpgrade(newImplementation)
     }
 
     class Listing {
         +address seller
         +uint256 tokenId
         +uint256 price
-        +uint256 createdAt
         +bool active
     }
 
@@ -87,58 +68,7 @@ classDiagram
         +address buyer
         +uint256 tokenId
         +uint256 amount
-        +uint256 createdAt
         +bool active
-    }
-
-    class MonetaryOracle {
-        +uint256 INDEX_PRECISION
-        +uint256 currentIndex
-        +uint256 lastUpdateAt
-        +uint256 totalUpdates
-        +bool invalidated
-        +initialize(initialOwner)
-        +updateIndex(newIndex)
-        +adjustedValue(faceValue) uint256
-        +pause()
-        +unpause()
-        +invalidate()
-        #_authorizeUpgrade(newImplementation)
-    }
-
-    class CompensationManager {
-        +IPrecatorioNFT precatorioNFT
-        +IMonetaryOracle monetaryOracle
-        +uint256 nextDebtId
-        +uint256 nextCompensationId
-        +bool invalidated
-        +mapping debts
-        +mapping debtIdentifiersUsed
-        +mapping compensations
-        +initialize(initialOwner, nft, oracle)
-        +registerDebt(identifier, debtor, amount) uint256
-        +compensate(tokenId, debtId) uint256
-        +pause()
-        +unpause()
-        +invalidate()
-        #_authorizeUpgrade(newImplementation)
-    }
-
-    class FiscalDebt {
-        +bytes32 identifier
-        +address debtor
-        +uint256 originalAmount
-        +uint256 outstanding
-        +uint256 registeredAt
-    }
-
-    class Compensation {
-        +uint256 tokenId
-        +uint256 debtId
-        +address creditor
-        +uint256 faceValue
-        +uint256 adjustedValue
-        +uint256 executedAt
     }
 
     ERC721PausableUpgradeable <|-- PrecatorioNFT
@@ -149,23 +79,13 @@ classDiagram
     UUPSUpgradeable <|-- PrecatorioMarketplace
     ReentrancyGuardTransient <|-- PrecatorioMarketplace
 
-    OwnableUpgradeable <|-- MonetaryOracle
-    UUPSUpgradeable <|-- MonetaryOracle
-
-    OwnableUpgradeable <|-- CompensationManager
-    UUPSUpgradeable <|-- CompensationManager
-
     PrecatorioNFT "1" --> "*" Precatorio
     PrecatorioMarketplace "1" --> "*" Listing
     PrecatorioMarketplace "1" --> "*" Offer
-    CompensationManager "1" --> "*" FiscalDebt
-    CompensationManager "1" --> "*" Compensation
     PrecatorioMarketplace --> PrecatorioNFT : safeTransferFrom(tokenId)
-    CompensationManager --> PrecatorioNFT : burnForCompensation(tokenId)
-    CompensationManager --> MonetaryOracle : adjustedValue(faceValue)
 ```
 
-## `PrecatorioNFT`
+### `PrecatorioNFT`
 
 Cada `tokenId` identifica um precatório individual.
 
@@ -181,9 +101,9 @@ struct Precatorio {
 
 A herança de `ERC721PausableUpgradeable` fornece o comportamento ERC-721 e bloqueio de transferências durante pausa. `OwnableUpgradeable` controla as operações institucionais e `UUPSUpgradeable` permite atualização da implementação.
 
-`burnForCompensation` queima um precatório consumido pela compensação atômica e só pode ser chamado pelo endereço definido em `compensationManager` (via `setCompensationManager`, restrito ao owner). Os dados em `precatorios[tokenId]` permanecem como histórico do ativo extinto. A variável `compensationManager` foi adicionada ao final do layout de storage para preservar a compatibilidade de upgrade do proxy.
+`burnForCompensation` queima um precatório consumido pela compensação atômica e só pode ser chamado pelo endereço definido em `compensationManager` (via `setCompensationManager`, restrito ao owner). Os dados em `precatorios[tokenId]` permanecem como histórico do ativo extinto. A variável `compensationManager` foi adicionada ao final do layout de storage para preservar a compatibilidade de upgrade do proxy — ver [«Oráculo e compensação»](#oráculo-e-compensação) abaixo para como `CompensationManager` consome essa função.
 
-## `PrecatorioMarketplace`
+### `PrecatorioMarketplace`
 
 ```solidity
 struct Listing {
@@ -207,7 +127,7 @@ Na compra:
 
 Se qualquer chamada reverter, a transação inteira é revertida pela EVM. `buy` também usa `ReentrancyGuardTransient` da OpenZeppelin; como a PoC já compila para Cancun, o guard utiliza armazenamento transitório (EIP-1153) sem adicionar estado persistente ao layout do proxy.
 
-### Lado da demanda — `Offer`
+#### Lado da demanda — `Offer`
 
 ```solidity
 struct Offer {
@@ -221,7 +141,74 @@ struct Offer {
 
 `makeOffer` não exige listagem prévia: qualquer conta que não seja a proprietária atual do `tokenId` pode escrowar ETH de teste como lance. `acceptOffer` só pode ser chamado pelo proprietário atual (que precisa ter aprovado o marketplace, igual a `buy`) e, na mesma transação, encerra uma listagem a preço fixo eventualmente ativa para o mesmo `tokenId`. Se o comprador tiver recebido o NFT por outro fluxo enquanto a oferta ainda estiver ativa, o autoaceite é bloqueado para não registrar uma venda artificial; ele continua podendo usar `cancelOffer` para recuperar o depósito. `cancelOffer` devolve o depósito ao comprador e, deliberadamente, não usa `whenValid`/`whenNotPaused`: como o ETH fica dentro do contrato, o comprador precisa sempre conseguir recuperá-lo.
 
-## `MonetaryOracle`
+## Oráculo e compensação
+
+```mermaid
+classDiagram
+    class OwnableUpgradeable {
+        <<OpenZeppelin>>
+        +owner() address
+    }
+
+    class UUPSUpgradeable {
+        <<OpenZeppelin>>
+    }
+
+    class MonetaryOracle {
+        +uint256 INDEX_PRECISION
+        +uint256 currentIndex
+        +uint256 lastUpdateAt
+        +uint256 totalUpdates
+        +initialize(initialOwner)
+        +updateIndex(newIndex)
+        +adjustedValue(faceValue) uint256
+    }
+
+    class CompensationManager {
+        +IPrecatorioNFT precatorioNFT
+        +IMonetaryOracle monetaryOracle
+        +mapping debts
+        +mapping compensations
+        +initialize(initialOwner, nft, oracle)
+        +registerDebt(identifier, debtor, amount) uint256
+        +compensate(tokenId, debtId) uint256
+    }
+
+    class FiscalDebt {
+        +bytes32 identifier
+        +address debtor
+        +uint256 originalAmount
+        +uint256 outstanding
+        +uint256 registeredAt
+    }
+
+    class Compensation {
+        +uint256 tokenId
+        +uint256 debtId
+        +address creditor
+        +uint256 faceValue
+        +uint256 adjustedValue
+        +uint256 executedAt
+    }
+
+    class PrecatorioNFT {
+        <<ver diagrama "Ativo e mercado">>
+        +burnForCompensation(tokenId)
+    }
+
+    OwnableUpgradeable <|-- MonetaryOracle
+    UUPSUpgradeable <|-- MonetaryOracle
+
+    OwnableUpgradeable <|-- CompensationManager
+    UUPSUpgradeable <|-- CompensationManager
+
+    CompensationManager "1" --> "*" FiscalDebt
+    CompensationManager "1" --> "*" Compensation
+    CompensationManager --> PrecatorioNFT : burnForCompensation(tokenId)
+    CompensationManager --> MonetaryOracle : adjustedValue(faceValue)
+```
+
+### `MonetaryOracle`
 
 Oráculo institucional **mock** de atualização monetária. Publica um índice acumulado de correção com precisão de `1e18` (fator neutro `1,0`):
 
@@ -231,7 +218,7 @@ valorCorrigido = faceValue × currentIndex / 1e18
 
 `updateIndex` é restrito ao owner (que faz o papel da fonte institucional na PoC) e rejeita índice menor que o vigente: correção monetária acumulada não regride. `adjustedValue` é `view` e continua consultável mesmo com o contrato pausado.
 
-## `CompensationManager`
+### `CompensationManager`
 
 Núcleo da proposta Quitus & Debitus: compensação atômica entre o crédito do precatório e um débito fiscal mock.
 
@@ -286,7 +273,7 @@ blockchain/contracts/
     └── PrecatorioMarketplaceV2.sol
 ```
 
-Cada contrato principal ocupa um arquivo com o mesmo nome, alinhado ao Style Guide do Solidity. Comportamentos padronizados (ERC-721, propriedade, pausa, UUPS, `IERC721` e proteção contra reentrância) são importados da OpenZeppelin em vez de reimplementados em arquivos locais. Os contratos `V2` ficam isolados em `mocks/` porque existem apenas para validar a demonstração de upgrade.
+Cada contrato principal ocupa um arquivo com o mesmo nome, alinhado ao Style Guide do Solidity. Comportamentos padronizados (ERC-721, propriedade, pausa, UUPS, `IERC721` e proteção contra reentrância) são importados da OpenZeppelin em vez de reimplementados em arquivos locais. Os contratos `V2` ficam isolados em `mocks/` porque existem apenas para validar a demonstração de upgrade — só `PrecatorioNFT` e `PrecatorioMarketplace` têm uma versão `V2`; `MonetaryOracle`/`CompensationManager` não fazem parte dessa demonstração.
 
 Não há uma pasta `interfaces/` própria: `PrecatorioMarketplace` depende somente da interface padronizada `IERC721`, e as interfaces mínimas `IPrecatorioNFT`/`IMonetaryOracle` vivem no próprio `CompensationManager.sol`, seu único consumidor. Também não há contrato-base comum de ciclo de vida: extrair `pause`/`invalidate` para uma nova hierarquia aumentaria a complexidade de herança e de layout de storage de uma arquitetura upgradeable sem ganho relevante de reutilização. Se novas implementações passarem a compartilhar esse comportamento, essa decisão pode ser revista preservando as regras de compatibilidade de storage.
 

@@ -10,6 +10,16 @@
       "address": "0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087",
       "txHash": "0x4fcc4601da53dbbf7a39386fbb209870d180f94324d37ba4eee48c9e34c80e46",
       "kind": "uups"
+    },
+    {
+      "address": "0x9A53278A32AF3e2dd5cA58AB3E8dBA63feB37dA1",
+      "txHash": "0x10c329317d76ec6cf53a0104546e2588a2d5a54b837fff809a07e0e1f418386e",
+      "kind": "uups"
+    },
+    {
+      "address": "0xab1D387a99d1140AD954dfA27965C77aEE59Cf21",
+      "txHash": "0x61fa646209cb66a508c8ebea6bcee25610987cd95c7b1d0b8870d2324595720a",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -530,6 +540,1000 @@
               {
                 "label": "active",
                 "type": "t_bool",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "0b1b7719784a7f9be5ceb195d592de8de8ec4a60fd0ef2b7d8e9951438820155": {
+      "address": "0x9f2a7801676fc9f1CeeBd21be0382A3ed6Fb66aB",
+      "txHash": "0x7e35a23b55e44d917aead552fa3208a1a828cedf719d56c692d3c4716dc86271",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "nextTokenId",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256",
+            "contract": "PrecatorioNFT",
+            "src": "project/contracts/PrecatorioNFT.sol:28"
+          },
+          {
+            "label": "invalidated",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_bool",
+            "contract": "PrecatorioNFT",
+            "src": "project/contracts/PrecatorioNFT.sol:29"
+          },
+          {
+            "label": "precatorios",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_uint256,t_struct(Precatorio)11550_storage)",
+            "contract": "PrecatorioNFT",
+            "src": "project/contracts/PrecatorioNFT.sol:31"
+          },
+          {
+            "label": "identifiersUsed",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "PrecatorioNFT",
+            "src": "project/contracts/PrecatorioNFT.sol:32"
+          },
+          {
+            "label": "compensationManager",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_address",
+            "contract": "PrecatorioNFT",
+            "src": "project/contracts/PrecatorioNFT.sol:37"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_address,t_bool))": {
+            "label": "mapping(address => mapping(address => bool))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_address)": {
+            "label": "mapping(uint256 => address)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(ERC721Storage)123_storage": {
+            "label": "struct ERC721Upgradeable.ERC721Storage",
+            "members": [
+              {
+                "label": "_name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "_owners",
+                "type": "t_mapping(t_uint256,t_address)",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "_balances",
+                "type": "t_mapping(t_address,t_uint256)",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "_tokenApprovals",
+                "type": "t_mapping(t_uint256,t_address)",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "_operatorApprovals",
+                "type": "t_mapping(t_address,t_mapping(t_address,t_bool))",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(InitializableStorage)717_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)475_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_bool)": {
+            "label": "mapping(bytes32 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Precatorio)11550_storage)": {
+            "label": "mapping(uint256 => struct PrecatorioNFT.Precatorio)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Precatorio)11550_storage": {
+            "label": "struct PrecatorioNFT.Precatorio",
+            "members": [
+              {
+                "label": "identifier",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "faceValue",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "registeredAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ERC721": [
+            {
+              "contract": "ERC721Upgradeable",
+              "label": "_name",
+              "type": "t_string_storage",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/token/ERC721/ERC721Upgradeable.sol:27",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "ERC721Upgradeable",
+              "label": "_symbol",
+              "type": "t_string_storage",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/token/ERC721/ERC721Upgradeable.sol:30",
+              "offset": 0,
+              "slot": "1"
+            },
+            {
+              "contract": "ERC721Upgradeable",
+              "label": "_owners",
+              "type": "t_mapping(t_uint256,t_address)",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/token/ERC721/ERC721Upgradeable.sol:32",
+              "offset": 0,
+              "slot": "2"
+            },
+            {
+              "contract": "ERC721Upgradeable",
+              "label": "_balances",
+              "type": "t_mapping(t_address,t_uint256)",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/token/ERC721/ERC721Upgradeable.sol:34",
+              "offset": 0,
+              "slot": "3"
+            },
+            {
+              "contract": "ERC721Upgradeable",
+              "label": "_tokenApprovals",
+              "type": "t_mapping(t_uint256,t_address)",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/token/ERC721/ERC721Upgradeable.sol:36",
+              "offset": 0,
+              "slot": "4"
+            },
+            {
+              "contract": "ERC721Upgradeable",
+              "label": "_operatorApprovals",
+              "type": "t_mapping(t_address,t_mapping(t_address,t_bool))",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/token/ERC721/ERC721Upgradeable.sol:38",
+              "offset": 0,
+              "slot": "5"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "a82bd7987daa930e65db1510e4ea04b10c75f7731125090e0f1bed160403cac3": {
+      "address": "0x49A54D0cE6c477A85fB244E5C81D670309eea9A8",
+      "txHash": "0x9d16dff6dd33a826e764b1289166237d9b541316fb8656e73e6066e247216ad5",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "precatorioNFT",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_contract(IERC721)2609",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:46"
+          },
+          {
+            "label": "nextListingId",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:48"
+          },
+          {
+            "label": "totalSales",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:49"
+          },
+          {
+            "label": "lastSalePrice",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_uint256",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:50"
+          },
+          {
+            "label": "invalidated",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_bool",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:51"
+          },
+          {
+            "label": "listings",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_mapping(t_uint256,t_struct(Listing)10491_storage)",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:53"
+          },
+          {
+            "label": "activeListingByTokenId",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:54"
+          },
+          {
+            "label": "nextOfferId",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_uint256",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:56"
+          },
+          {
+            "label": "offers",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_mapping(t_uint256,t_struct(Offer)10503_storage)",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:57"
+          },
+          {
+            "label": "activeOfferByBuyerAndToken",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_uint256))",
+            "contract": "PrecatorioMarketplace",
+            "src": "project/contracts/PrecatorioMarketplace.sol:58"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)717_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)475_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_contract(IERC721)2609": {
+            "label": "contract IERC721",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_mapping(t_uint256,t_uint256))": {
+            "label": "mapping(address => mapping(uint256 => uint256))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Listing)10491_storage)": {
+            "label": "mapping(uint256 => struct PrecatorioMarketplace.Listing)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Offer)10503_storage)": {
+            "label": "mapping(uint256 => struct PrecatorioMarketplace.Offer)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Listing)10491_storage": {
+            "label": "struct PrecatorioMarketplace.Listing",
+            "members": [
+              {
+                "label": "seller",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "tokenId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "price",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "createdAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "active",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(Offer)10503_storage": {
+            "label": "struct PrecatorioMarketplace.Offer",
+            "members": [
+              {
+                "label": "buyer",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "tokenId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "createdAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "active",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "9daa6a361c1f7cb4f5e3a151997db095fdb1a72fd6c3e786f1a8e04a89a686d5": {
+      "address": "0xbe2A62257a4AB4481e1C1BA7614EdC3C057F810c",
+      "txHash": "0x3100d1b7caaecf7631c5dba2a30f0f529f2b9e28275192b80163a316cb896d55",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "currentIndex",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256",
+            "contract": "MonetaryOracle",
+            "src": "project/contracts/MonetaryOracle.sol:30"
+          },
+          {
+            "label": "lastUpdateAt",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256",
+            "contract": "MonetaryOracle",
+            "src": "project/contracts/MonetaryOracle.sol:31"
+          },
+          {
+            "label": "totalUpdates",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "MonetaryOracle",
+            "src": "project/contracts/MonetaryOracle.sol:32"
+          },
+          {
+            "label": "invalidated",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_bool",
+            "contract": "MonetaryOracle",
+            "src": "project/contracts/MonetaryOracle.sol:33"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)717_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)475_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "npm/@openzeppelin/contracts-upgradeable@5.6.1/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "npm/@openzeppelin/contracts@5.6.1/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "f48b48c69e6b29b000a0150ab33f013f27f23cf56148b16e0bf98137e8bce575": {
+      "address": "0x35Cc04eCd9ABAE185E0906542Ec61dE214Ec727B",
+      "txHash": "0x087b2c2198d610865bd534016ebafd9a09cc6e5c0d2d6360eb71c641f1085097",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "precatorioNFT",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_contract(IPrecatorioNFT)9694",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:66"
+          },
+          {
+            "label": "monetaryOracle",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_contract(IMonetaryOracle)9707",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:67"
+          },
+          {
+            "label": "nextDebtId",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:70"
+          },
+          {
+            "label": "nextCompensationId",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_uint256",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:70"
+          },
+          {
+            "label": "invalidated",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_bool",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:73"
+          },
+          {
+            "label": "debts",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_mapping(t_uint256,t_struct(FiscalDebt)9727_storage)",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:73"
+          },
+          {
+            "label": "debtIdentifiersUsed",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:74"
+          },
+          {
+            "label": "compensations",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_mapping(t_uint256,t_struct(Compensation)9741_storage)",
+            "contract": "CompensationManager",
+            "src": "project/contracts/CompensationManager.sol:75"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)717_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)475_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IMonetaryOracle)9707": {
+            "label": "contract IMonetaryOracle",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IPrecatorioNFT)9694": {
+            "label": "contract IPrecatorioNFT",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_bytes32,t_bool)": {
+            "label": "mapping(bytes32 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Compensation)9741_storage)": {
+            "label": "mapping(uint256 => struct CompensationManager.Compensation)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(FiscalDebt)9727_storage)": {
+            "label": "mapping(uint256 => struct CompensationManager.FiscalDebt)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Compensation)9741_storage": {
+            "label": "struct CompensationManager.Compensation",
+            "members": [
+              {
+                "label": "tokenId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "debtId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "creditor",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "faceValue",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "adjustedValue",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "executedAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(FiscalDebt)9727_storage": {
+            "label": "struct CompensationManager.FiscalDebt",
+            "members": [
+              {
+                "label": "identifier",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "debtor",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "originalAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "outstanding",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "registeredAt",
+                "type": "t_uint256",
                 "offset": 0,
                 "slot": "4"
               }

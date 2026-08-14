@@ -304,6 +304,19 @@ button[type="submit"]:active:not(:disabled),
   gap: 8px;
 }
 
+.wallet-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wallet-cluster .wallet-button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .wallet-dot {
   width: 8px;
   height: 8px;
@@ -394,6 +407,23 @@ form {
 .inline-form > button[type="submit"] {
   grid-column: 1 / -1;
   width: 100%;
+}
+
+.form-span {
+  grid-column: 1 / -1;
+}
+
+.form-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .field {
@@ -929,6 +959,18 @@ form {
 
   .wallet-button {
     width: 100%;
+  }
+
+  .wallet-cluster {
+    width: 100%;
+  }
+
+  .wallet-cluster .button-secondary {
+    flex: 1;
+  }
+
+  .card-actions {
+    grid-template-columns: 1fr;
   }
 }
 

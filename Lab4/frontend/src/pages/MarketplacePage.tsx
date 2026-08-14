@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Address } from "viem";
 
 import type {
@@ -62,6 +62,12 @@ export function MarketplacePage({
 
   const [offerTokenId, setOfferTokenId] = useState("");
   const [offerAmount, setOfferAmount] = useState("0.05");
+  const offerFormRef = useRef<HTMLDivElement>(null);
+
+  const chooseOfferTarget = (tokenId: bigint) => {
+    setOfferTokenId(tokenId.toString());
+    offerFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const assetByTokenId = useMemo(
     () => new Map(precatorios.map((asset) => [asset.tokenId.toString(), asset])),
@@ -118,9 +124,10 @@ export function MarketplacePage({
           </form>
         </Panel>
 
+        <div ref={offerFormRef}>
         <Panel
           title="Fazer uma oferta (demanda)"
-          description="Proponha um lance por qualquer precatório, mesmo sem listagem ativa. O ETH fica retido no contrato até o proprietário aceitar ou você cancelar."
+          description="Lance em ETH por um precatório de outra conta — listado ou não. Você não oferta o seu próprio NFT: o select só lista tokens de outros titulares. O ETH fica retido no contrato até o dono aceitar ou você cancelar."
         >
           <form
             className="inline-form"
@@ -130,23 +137,39 @@ export function MarketplacePage({
             }}
           >
             <label className="field">
-              <span>Precatório</span>
+              <span>Precatório de outro titular</span>
               <select
                 value={offerTokenId}
                 onChange={(event) => setOfferTokenId(event.target.value)}
                 required
+                disabled={!account || offerable.length === 0}
               >
-                <option value="">Selecione um NFT</option>
+                <option value="">
+                  {offerable.length === 0
+                    ? "Nenhum NFT de outra conta"
+                    : "Selecione um NFT de outra conta"}
+                </option>
                 {offerable.map((asset) => (
                   <option
                     key={asset.tokenId.toString()}
                     value={asset.tokenId.toString()}
                   >
                     #{asset.tokenId.toString()} · {fromCents(asset.faceValue)}
+                    {asset.activeListingId
+                      ? ` · listado #${asset.activeListingId}`
+                      : " · não listado"}
                   </option>
                 ))}
               </select>
             </label>
+
+            {account && offerable.length === 0 && (
+              <p className="form-hint form-span">
+                Não há precatórios de outras contas nesta rede. Conecte outra
+                carteira em <strong>Trocar conta</strong> ou emita um NFT para
+                um endereço diferente.
+              </p>
+            )}
 
             <FormField
               label="Lance (ETH de teste)"
@@ -164,6 +187,7 @@ export function MarketplacePage({
             </button>
           </form>
         </Panel>
+        </div>
       </div>
 
       {myOffers.length > 0 && (
@@ -303,17 +327,26 @@ export function MarketplacePage({
                         Cancelar listagem
                       </button>
                     ) : (
-                      <button
-                        disabled={
-                          !account ||
-                          loading ||
-                          disabled ||
-                          !listing.executable
-                        }
-                        onClick={() => void onBuy(listing)}
-                      >
-                        {listing.executable ? "Comprar NFT" : "Indisponível"}
-                      </button>
+                      <div className="card-actions">
+                        <button
+                          disabled={
+                            !account ||
+                            loading ||
+                            disabled ||
+                            !listing.executable
+                          }
+                          onClick={() => void onBuy(listing)}
+                        >
+                          {listing.executable ? "Comprar NFT" : "Indisponível"}
+                        </button>
+                        <button
+                          className="button-secondary"
+                          disabled={!account || loading || disabled}
+                          onClick={() => chooseOfferTarget(listing.tokenId)}
+                        >
+                          Fazer oferta
+                        </button>
+                      </div>
                     )}
                   </div>
                 </article>

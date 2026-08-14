@@ -108,7 +108,34 @@ Volte ao **Marketplace** e mostre que a oferta desapareceu de "Suas ofertas envi
 
 Opcional: repita o passo 2 e, antes do aceite, cancele a oferta pela conta compradora para mostrar a devolução do ETH escrowado (`cancelOffer`).
 
-## 6. Demonstrar pausa
+## 6. Demonstrar oráculo e compensação atômica
+
+Emitir um terceiro NFT (#3) para a conta que vai fazer o papel de credora/devedora nesta demonstração.
+
+Com o administrador, na página **Oráculo & Compensação**:
+
+1. publicar um novo índice, por exemplo `1.10` (correção de 10%);
+2. registrar um débito fiscal mock para a mesma conta dona do NFT #3, com valor maior que o valor de face corrigido (ex.: NFT de `R$ 1.000,00` corrigido para `R$ 1.100,00` → débito de `R$ 2.000,00`).
+
+Com a conta dona do NFT #3:
+
+3. na seção "Compensar um precatório", selecionar o NFT #3 e o débito registrado;
+4. conferir a prévia do crédito corrigido (`R$ 1.100,00`, calculada no cliente com o mesmo índice on-chain);
+5. confirmar a compensação.
+
+Resultado esperado:
+
+```text
+NFT #3 → queimado (ownerOf reverte)
+débito → abatido pelo valor corrigido (saldo R$ 900,00)
+termo de quitação → aparece no histórico da própria página
+```
+
+Explique: os dois passos — queima do NFT e abatimento do débito — acontecem na mesma transação; se qualquer um revertesse, a EVM desfaria os dois.
+
+Opcional: tente registrar um débito menor que o crédito corrigido e mostrar que a interface bloqueia o envio (`DebtSmallerThanCredit` seria revertido on-chain).
+
+## 7. Demonstrar pausa
 
 Com o administrador:
 
@@ -121,7 +148,7 @@ Com o administrador:
 
 Explique: pausa é **temporária**. Se quiser, mostre também que `cancelOffer` continua funcionando mesmo com o marketplace pausado — o comprador de uma oferta ainda ativa consegue recuperar o depósito.
 
-## 7. Demonstrar upgrade
+## 8. Demonstrar upgrade
 
 No terminal, com os contratos ainda válidos:
 
@@ -137,7 +164,7 @@ Mostrar na saída:
 
 Explique: upgrade troca a implementação mantendo o proxy e o estado.
 
-## 8. Demonstrar invalidação permanente
+## 9. Demonstrar invalidação permanente
 
 Faça este passo **por último**, pois não existe retorno.
 
@@ -164,8 +191,12 @@ Essa variante não substitui a demonstração local — só reforça a evidênci
 
 - Proxy `PrecatorioNFT`: https://sepolia.etherscan.io/address/0x4D59c2b2d3A96019B3FC4B14CaFF2143f1EC74C8
 - Proxy `PrecatorioMarketplace`: https://sepolia.etherscan.io/address/0x79D17Cd563A472dDe76d41C63e22dbDc97c6d087
-- Código verificado (`PrecatorioNFT`): https://sepolia.etherscan.io/address/0x971B0fdFA3658813449F144c38B7c1c7Ed4346cB#code
-- Código verificado (`PrecatorioMarketplace`): https://sepolia.etherscan.io/address/0x20EC3b95B1Fb7A3a4e4e85d83Bb0C2c41E3b9e4c#code
+- Proxy `MonetaryOracle`: https://sepolia.etherscan.io/address/0x9A53278A32AF3e2dd5cA58AB3E8dBA63feB37dA1
+- Proxy `CompensationManager`: https://sepolia.etherscan.io/address/0xab1D387a99d1140AD954dfA27965C77aEE59Cf21
+- Código verificado (`PrecatorioNFT`): https://sepolia.etherscan.io/address/0x9f2a7801676fc9f1CeeBd21be0382A3ed6Fb66aB#code
+- Código verificado (`PrecatorioMarketplace`): https://sepolia.etherscan.io/address/0x49A54D0cE6c477A85fB244E5C81D670309eea9A8#code
+- Código verificado (`MonetaryOracle`): https://sepolia.etherscan.io/address/0xbe2A62257a4AB4481e1C1BA7614EdC3C057F810c#code
+- Código verificado (`CompensationManager`): https://sepolia.etherscan.io/address/0x35Cc04eCd9ABAE185E0906542Ec61dE214Ec727B#code
 
 Detalhes do deploy (bloco, admin, implementações) em [`deploy.md`](./deploy.md#deploy-atual-na-sepolia).
 

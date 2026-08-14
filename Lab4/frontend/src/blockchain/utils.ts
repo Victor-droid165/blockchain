@@ -73,3 +73,25 @@ export function formatTimestamp(value: bigint) {
 export function asAddress(value: string): Address {
   return getAddress(value.trim());
 }
+
+/**
+ * O índice do MonetaryOracle usa a mesma precisão fixa de 1e18 que ETH em
+ * wei, então a conversão decimal é idêntica — só o domínio muda (fator de
+ * correção, não moeda).
+ */
+export function toIndex(value: string): bigint {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^\d+(\.\d{1,18})?$/.test(normalized)) {
+    throw new Error("Informe um índice válido (ex.: 1.05).");
+  }
+  return parseEther(normalized);
+}
+
+export function fromIndex(value: bigint) {
+  return formatEther(value);
+}
+
+/** Valor corrigido = faceValue × índice / 1e18, replicando MonetaryOracle.adjustedValue. */
+export function applyIndex(faceValue: bigint, index: bigint): bigint {
+  return (faceValue * index) / 1_000_000_000_000_000_000n;
+}
